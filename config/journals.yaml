@@ -1,0 +1,187 @@
+journals:
+  # ============ English (Comparative Literature) ============
+  - name: "Comparative Literature"
+    issn: "0010-4124"
+    publisher: "Duke University Press"
+    language: en
+    citation_style: "MLA"
+    openalex_source_id: "S49861241"
+    semantic_scholar_venue: "Comparative Literature"
+    rss_url: null
+    scope: "Comparative and world literature, translation studies"
+
+  - name: "PMLA"
+    issn: "0030-8129"
+    publisher: "Modern Language Association"
+    language: en
+    citation_style: "MLA"
+    openalex_source_id: "S192507708"
+    semantic_scholar_venue: "PMLA"
+    rss_url: null
+    scope: "Modern languages and literatures"
+
+  - name: "New Literary History"
+    issn: "0028-6087"
+    publisher: "Johns Hopkins University Press"
+    language: en
+    citation_style: "Chicago"
+    openalex_source_id: "S100836889"
+    semantic_scholar_venue: "New Literary History"
+    rss_url: null
+    scope: "Literary theory, interpretation, literary history"
+
+  - name: "Comparative Literature Studies"
+    issn: "0010-4132"
+    publisher: "Penn State University Press"
+    language: en
+    citation_style: "MLA"
+    openalex_source_id: "S11906944"
+    semantic_scholar_venue: "Comparative Literature Studies"
+    rss_url: null
+    scope: "Comparative literature, cultural studies"
+
+  - name: "Poetics Today"
+    issn: "0333-5372"
+    publisher: "Duke University Press"
+    language: en
+    citation_style: "Chicago"
+    openalex_source_id: "S28737395"
+    semantic_scholar_venue: "Poetics Today"
+    rss_url: null
+    scope: "Poetics, literary theory, semiotics"
+
+  - name: "Critical Inquiry"
+    issn: "0093-1896"
+    publisher: "University of Chicago Press"
+    language: en
+    citation_style: "Chicago"
+    openalex_source_id: "S112790934"
+    semantic_scholar_venue: "Critical Inquiry"
+    rss_url: null
+    scope: "Critical theory, arts and humanities"
+
+  - name: "MLN"
+    issn: "0026-7910"
+    publisher: "Johns Hopkins University Press"
+    language: en
+    citation_style: "MLA"
+    openalex_source_id: "S158977795"
+    semantic_scholar_venue: "MLN"
+    rss_url: null
+    scope: "Modern languages, literary criticism"
+
+  - name: "World Literature Today"
+    issn: "0196-3570"
+    publisher: "University of Oklahoma"
+    language: en
+    citation_style: "MLA"
+    openalex_source_id: "S202697691"
+    semantic_scholar_venue: "World Literature Today"
+    rss_url: null
+    scope: "World literature, book reviews, contemporary writing"
+
+  # ============ Chinese (AHCI / CSSCI) ============
+  - name: "中国比较文学"
+    issn: "1006-6101"
+    publisher: "上海外国语大学"
+    language: zh
+    citation_style: "GB/T 7714"
+    openalex_source_id: null
+    semantic_scholar_venue: null
+    cnki_journal_code: "BJWX"
+    scope: "中外文学比较研究"
+
+  - name: "外国文学评论"
+    issn: "1001-6368"
+    publisher: "中国社会科学院外国文学研究所"
+    language: zh
+    citation_style: "GB/T 7714"
+    openalex_source_id: null
+    semantic_scholar_venue: null
+    cnki_journal_code: "WGWP"
+    scope: "外国文学批评与研究"
+
+  - name: "外国文学研究"
+    issn: "1003-7519"
+    publisher: "华中师范大学"
+    language: zh
+    citation_style: "GB/T 7714"
+    openalex_source_id: null
+    semantic_scholar_venue: null
+    cnki_journal_code: "WLXY"
+    scope: "外国文学、比较文学"
+
+  - name: "国外文学"
+    issn: "1002-5014"
+    publisher: "北京大学"
+    language: zh
+    citation_style: "GB/T 7714"
+    openalex_source_id: null
+    semantic_scholar_venue: null
+    cnki_journal_code: "GWWX"
+    scope: "外国文学翻译与研究"
+
+  - name: "文学评论"
+    issn: "0511-4683"
+    publisher: "中国社会科学院文学研究所"
+    language: zh
+    citation_style: "GB/T 7714"
+    openalex_source_id: null
+    semantic_scholar_venue: null
+    cnki_journal_code: "WXPL"
+    scope: "中国文学批评与研究"
+
+  # ============ French (AHCI) ============
+  - name: "Revue de littérature comparée"
+    issn: "0035-1466"
+    publisher: "Klincksieck"
+    language: fr
+    citation_style: "French academic"
+    openalex_source_id: null
+    semantic_scholar_venue: null
+    cairn_id: "RLC"
+    scope: "Littérature comparée"
+
+  - name: "Poétique"
+    issn: "0800-5907"
+    publisher: "Seuil"
+    language: fr
+    citation_style: "French academic"
+    openalex_source_id: null
+    semantic_scholar_venue: null
+    cairn_id: "POET"
+    scope: "Poétique, théorie littéraire"
+
+  - name: "Littérature"
+    issn: "0047-4800"
+    publisher: "Armand Colin"
+    language: fr
+    citation_style: "French academic"
+    openalex_source_id: null
+    semantic_scholar_venue: null
+    cairn_id: "LITT"
+    scope: "Littérature française et francophone"
+
+  - name: "Études littéraires"
+    issn: "0014-214X"
+    publisher: "Université Laval"
+    language: fr
+    citation_style: "French academic"
+    openalex_source_id: null
+    semantic_scholar_venue: null
+    cairn_id: null
+    scope: "Études littéraires générales"
+
+  - name: "Revue d'histoire littéraire de la France"
+    issn: "0035-2411"
+    publisher: "Classiques Garnier"
+    language: fr
+    citation_style: "French academic"
+    openalex_source_id: null
+    semantic_scholar_venue: null
+    cairn_id: "RHLF"
+    scope: "Histoire littéraire de la France"
+
+schedule:
+  scan_interval_hours: 168  # Weekly
+  lookback_days: 30

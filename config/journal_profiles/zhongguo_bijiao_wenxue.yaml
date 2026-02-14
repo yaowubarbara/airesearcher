@@ -1,0 +1,53 @@
+journal:
+  name: "中国比较文学"
+  issn: "1006-6101"
+  publisher: "上海外国语大学"
+  language: "zh"
+
+formatting:
+  citation_style: "GB/T 7714"
+  citation_method: "footnote"
+  bibliography: true
+  bibliography_title: "参考文献"
+  bibliography_sort: "order_of_appearance"
+
+  abstract:
+    required: true
+    max_words: 300
+    language: "zh+en"  # Both Chinese and English abstracts required
+
+  word_limit: "8000-12000"
+  sections:
+    use_numbered_headings: true
+    heading_style: "numbered_bold"
+
+  block_quote:
+    threshold_words: 100  # Chinese characters
+    indent: true
+
+  footnotes:
+    style: "footnote"
+    numbering: "per_page"
+
+  reference_examples:
+    book: '张隆溪. 道与逻各斯[M]. 南京: 江苏教育出版社, 2006.'
+    article: '王宁. "世界文学与中国"[J]. 中国比较文学, 2020(1): 1-15.'
+    translated: '[美]达姆罗什. 什么是世界文学[M]. 查明建, 等译. 北京: 北京大学出版社, 2014.'
+
+  writing_conventions:
+    - "中英文摘要均需提供"
+    - "关键词3-5个"
+    - "外文人名首次出现时附原文"
+    - "脚注中可使用外文原文引文"
+    - "参考文献按出现顺序排列"
+
+learned_patterns:
+  avg_references: 25
+  avg_footnotes: 20
+  avg_close_reading_passages: "3-5"
+  common_theoretical_frameworks:
+    - "比较诗学"
+    - "翻译研究"
+    - "跨文化对话"
+    - "世界文学理论"
+  typical_structure: "引言 → 理论框架 → 文本分析 → 比较讨论 → 结论"

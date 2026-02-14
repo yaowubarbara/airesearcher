@@ -1,0 +1,54 @@
+journal:
+  name: "外国文学评论"
+  issn: "1001-6368"
+  publisher: "中国社会科学院外国文学研究所"
+  language: "zh"
+
+formatting:
+  citation_style: "GB/T 7714-2015"
+  citation_method: "footnote_sequential"
+  bibliography: true
+  bibliography_title: "参考文献"
+  bibliography_sort: "order_of_appearance"
+
+  abstract:
+    required: true
+    max_words: 300
+    language: "zh_and_en"
+
+  word_limit: "10000-15000字"
+  sections:
+    use_numbered_headings: true
+    heading_style: "一、二、三、"
+
+  block_quote:
+    threshold_words: 100
+    indent: true
+    font_size: "reduced"
+
+  footnotes:
+    style: "footnote"
+    numbering: "sequential_per_page"
+
+  reference_examples:
+    book: '弗兰科·莫雷蒂:《远读》，陈静译，北京：生活·读书·新知三联书店，2020年。'
+    article: '陈众议:《论堂吉诃德形象的世界性》，《外国文学评论》2019年第3期，第5-22页。'
+    foreign_book: 'Auerbach, E. Mimesis: The Representation of Reality in Western Literature. Trans. W. Trask. Princeton: Princeton UP, 2003.'
+
+  writing_conventions:
+    - "中文行文为主，外文文献保持原文"
+    - "需要中英文双语摘要和关键词"
+    - "注释采用脚注形式，每页重新编号"
+    - "引用外国文学作品需提供原文及中文译文"
+
+learned_patterns:
+  avg_references: 25
+  avg_footnotes: 30
+  avg_close_reading_passages: "3-5"
+  common_theoretical_frameworks:
+    - "马克思主义文学批评"
+    - "比较文学影响研究"
+    - "叙事学"
+    - "文学人类学"
+    - "后殖民理论"
+  typical_structure: "引言 → 问题提出 → 文本细读 → 理论阐释 → 结语"

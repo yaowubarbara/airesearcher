@@ -1,0 +1,54 @@
+journal:
+  name: "Comparative Literature Studies"
+  issn: "0010-4132"
+  publisher: "Penn State University Press"
+  language: "en"
+
+formatting:
+  citation_style: "MLA 9th edition"
+  citation_method: "parenthetical"
+  bibliography: true
+  bibliography_title: "Works Cited"
+  bibliography_sort: "alphabetical_by_author"
+
+  abstract:
+    required: true
+    max_words: 150
+    language: "en"
+
+  word_limit: "7000-9000"
+  sections:
+    use_numbered_headings: false
+    heading_style: "centered_bold"
+
+  block_quote:
+    threshold_words: 40
+    indent: true
+    font_size: "reduced"
+
+  footnotes:
+    style: "endnote"
+    numbering: "sequential"
+
+  reference_examples:
+    book: 'Apter, Emily. *Against World Literature: On the Politics of Untranslatability*. Verso, 2013.'
+    article: 'Saussy, Haun. "Exquisite Cadavers Stitched from Fresh Nightmares." *Comparative Literature Studies* 41.3 (2004): 360-73.'
+    chapter: 'Bernheimer, Charles. "The Anxieties of Comparison." *Comparative Literature in the Age of Multiculturalism*, edited by Charles Bernheimer, Johns Hopkins UP, 1995, pp. 1-17.'
+
+  writing_conventions:
+    - "MLA parenthetical citations; avoid excessive footnotes"
+    - "Translations of non-English quotations required"
+    - "Clear thesis statement expected early in the essay"
+    - "Comparative framework should be explicit"
+
+learned_patterns:
+  avg_references: 30
+  avg_footnotes: 15
+  avg_close_reading_passages: "3-5"
+  common_theoretical_frameworks:
+    - "comparative poetics"
+    - "translation studies"
+    - "postcolonial studies"
+    - "cultural transfer"
+    - "genre theory"
+  typical_structure: "intro with thesis → literature review → comparative analysis sections → conclusion"

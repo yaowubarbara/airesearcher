@@ -1,0 +1,51 @@
+journal:
+  name: "Comparative Literature"
+  issn: "0010-4124"
+  publisher: "Duke University Press"
+  language: "en"
+
+formatting:
+  citation_style: "MLA 9th edition"
+  citation_method: "parenthetical"
+  bibliography: true
+  bibliography_title: "Works Cited"
+  bibliography_sort: "alphabetical_by_author"
+
+  abstract:
+    required: true
+    max_words: 150
+    language: "en"
+
+  word_limit: "8000-10000"
+  sections:
+    use_numbered_headings: false
+    heading_style: "centered_bold"
+
+  block_quote:
+    threshold_words: 40
+    indent: true
+    font_size: "reduced"
+
+  footnotes:
+    style: "endnote"
+    numbering: "sequential"
+
+  reference_examples:
+    book: 'Spivak, Gayatri Chakravorty. *Death of a Discipline*. Columbia UP, 2003.'
+    article: 'Moretti, Franco. "Conjectures on World Literature." *New Left Review* 1 (2000): 54-68.'
+    chapter: 'Damrosch, David. "World Literature in a Postcanonical, Hypercanonical Age." *Comparative Literature in an Age of Globalization*, edited by Haun Saussy, Johns Hopkins UP, 2006, pp. 43-53.'
+
+  writing_conventions:
+    - "Avoid first person singular; use 'this essay argues' formulations"
+    - "Translations of non-English quotations in main text, original in footnote"
+    - "Close reading passages typically 1-2 paragraphs of sustained analysis"
+
+learned_patterns:
+  avg_references: 35
+  avg_footnotes: 28
+  avg_close_reading_passages: "4-6"
+  common_theoretical_frameworks:
+    - "world literature theory"
+    - "translation studies"
+    - "postcolonial criticism"
+  typical_structure: "intro → theoretical framework → close reading sections → comparative synthesis → conclusion"

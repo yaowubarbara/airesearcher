@@ -1,0 +1,55 @@
+journal:
+  name: "Poétique"
+  issn: "0800-5907"
+  publisher: "Seuil"
+  language: "fr"
+
+formatting:
+  citation_style: "French academic (notes en bas de page)"
+  citation_method: "footnote"
+  bibliography: true
+  bibliography_title: "Bibliographie"
+  bibliography_sort: "alphabetical_by_author"
+
+  abstract:
+    required: true
+    max_words: 200
+    language: "fr"
+
+  word_limit: "8000-12000 mots"
+  sections:
+    use_numbered_headings: false
+    heading_style: "centered_italic"
+
+  block_quote:
+    threshold_words: 40
+    indent: true
+    font_size: "reduced"
+
+  footnotes:
+    style: "footnote"
+    numbering: "sequential"
+
+  reference_examples:
+    book: 'Genette, Gérard, *Figures III*, Paris, Seuil, coll. « Poétique », 1972.'
+    article: 'Hamon, Philippe, « Pour un statut sémiologique du personnage », *Poétique*, n° 6, 1972, p. 86-110.'
+    chapter: 'Todorov, Tzvetan, « Les catégories du récit littéraire », dans *L''Analyse structurale du récit*, Communications, n° 8, Paris, Seuil, 1966, p. 125-151.'
+
+  writing_conventions:
+    - "Rédaction en français exclusivement"
+    - "Citations en langue originale avec traduction française si nécessaire"
+    - "Style analytique rigoureux, héritage structuraliste"
+    - "Guillemets français (« ») pour les citations"
+    - "Utiliser le « nous » académique plutôt que le « je »"
+
+learned_patterns:
+  avg_references: 30
+  avg_footnotes: 35
+  avg_close_reading_passages: "4-6"
+  common_theoretical_frameworks:
+    - "narratologie (Genette, Todorov)"
+    - "sémiotique littéraire"
+    - "poétique des genres"
+    - "stylistique"
+    - "théorie de la fiction"
+  typical_structure: "introduction problématisée → cadrage théorique → analyses textuelles → synthèse → conclusion"

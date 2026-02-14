@@ -1,0 +1,38 @@
+# Institutional Proxy Configuration
+# Run `ai-researcher config-proxy` to set up, or edit manually.
+
+proxy:
+  enabled: false          # Set to true after configuring
+  type: "ezproxy"         # ezproxy | shibboleth_ezproxy
+  base_url: ""            # e.g. "https://proxy.university.edu"
+  # EZproxy URL rewriting: {base_url}/login?url={target_url}
+  # Prefix mode auto-detected if base_url contains port (e.g. proxy.uni.edu:2048)
+
+credentials:
+  username: ""            # Your institutional username
+  password_env: "INSTITUTIONAL_PASSWORD"  # Password read from this env var (not stored in file)
+
+# Publishers that need proxy access (pre-populated, user can edit)
+publishers:
+  - name: "JSTOR"
+    domains: ["jstor.org", "www.jstor.org"]
+  - name: "Project MUSE"
+    domains: ["muse.jhu.edu"]
+  - name: "Springer"
+    domains: ["link.springer.com", "springer.com", "springerlink.com"]
+  - name: "Elsevier / ScienceDirect"
+    domains: ["sciencedirect.com", "elsevier.com"]
+  - name: "Wiley"
+    domains: ["onlinelibrary.wiley.com", "wiley.com"]
+  - name: "Taylor & Francis"
+    domains: ["tandfonline.com"]
+  - name: "Cambridge University Press"
+    domains: ["cambridge.org"]
+  - name: "Oxford University Press"
+    domains: ["academic.oup.com", "oup.com"]
+  - name: "Duke University Press"
+    domains: ["read.dukeupress.edu", "dukeupress.edu"]
+  - name: "SAGE"
+    domains: ["journals.sagepub.com", "sagepub.com"]
+  - name: "De Gruyter"
+    domains: ["degruyter.com"]

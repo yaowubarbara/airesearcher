@@ -1,0 +1,25 @@
+journal: "Comparative Literature"
+review_style:
+  strictness: high
+  focus_areas:
+    - "originality of comparative framework"
+    - "depth of close reading across languages"
+    - "engagement with recent world literature theory"
+  common_rejection_reasons:
+    - "insufficient engagement with primary texts"
+    - "comparison remains superficial / parallel rather than truly comparative"
+    - "theoretical framework not adequately justified"
+  expected_reference_count: "30-45"
+  expected_close_reading_passages: "4-6"
+  preferred_theoretical_frameworks:
+    - "world literature (Damrosch, Moretti, Casanova)"
+    - "translation studies (Venuti, Apter)"
+    - "postcolonial/decolonial approaches"
+  editorial_preferences:
+    - "Favors genuinely cross-cultural comparison over single-tradition studies"
+    - "Values methodological innovation"
+    - "Recent interest in digital humanities and distant reading"
+learned_from_recent_publications:
+  hot_topics: []
+  frequent_authors_cited: []
+  avg_word_count: 0
