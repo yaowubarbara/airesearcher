@@ -19,6 +19,20 @@ from src.utils.api_clients import (
 
 logger = logging.getLogger(__name__)
 
+# Short words that carry no topical signal — skip when filtering by keyword overlap.
+_STOPWORDS = frozenset(
+    "a an the of in on at to for and or but is are was were by with from as it"
+    " its this that these those be been has have had do does did not no".split()
+)
+
+
+def _extract_keywords(query: str) -> list[str]:
+    """Extract meaningful lowercase keywords from a search query."""
+    import re
+
+    tokens = re.split(r"\W+", query.lower())
+    return [t for t in tokens if t and t not in _STOPWORDS and len(t) > 2]
+
 
 class ReferenceSearcher:
     """Search for relevant papers across Semantic Scholar, OpenAlex, and CrossRef."""
@@ -111,18 +125,32 @@ class ReferenceSearcher:
     async def _search_crossref(self, query: str, limit: int) -> list[Paper]:
         client = CrossRefClient()
         try:
+            # Use query.bibliographic to search title/abstract only (less noise
+            # than the generic query which matches against all metadata fields).
             data = await client.search_works(
-                query=query,
+                query_bibliographic=query,
                 rows=min(limit, 50),
             )
             items = data.get("message", {}).get("items") or []
+            query_keywords = _extract_keywords(query)
             papers = []
             for item in items:
                 try:
+                    # Filter out results whose title has zero keyword overlap
+                    # with the search query — CrossRef is notoriously noisy.
+                    title_list = item.get("title") or []
+                    title = title_list[0].lower() if title_list else ""
+                    if query_keywords and not any(kw in title for kw in query_keywords):
+                        continue
                     paper = _crossref_item_to_paper(item, "")
                     papers.append(paper)
                 except Exception:
                     logger.debug("Failed to parse CrossRef result", exc_info=True)
+            logger.info(
+                "CrossRef: %d items returned, %d after relevance filter",
+                len(items),
+                len(papers),
+            )
             return papers
         finally:
             await client.close()

@@ -190,6 +190,7 @@ class CrossRefClient(APIClient):
     async def search_works(
         self,
         query: Optional[str] = None,
+        query_bibliographic: Optional[str] = None,
         issn: Optional[str] = None,
         from_date: Optional[str] = None,
         rows: int = 20,
@@ -197,7 +198,9 @@ class CrossRefClient(APIClient):
         params: dict[str, Any] = {"rows": rows}
         if self.email:
             params["mailto"] = self.email
-        if query:
+        if query_bibliographic:
+            params["query.bibliographic"] = query_bibliographic
+        elif query:
             params["query"] = query
 
         filters = []

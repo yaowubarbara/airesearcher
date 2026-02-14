@@ -1,9 +1,9 @@
 # AI Researcher - Project Memory
 
 ## Current Status
-- Phase: 8 (Institutional Proxy Access) — COMPLETE
-- Last completed: EZproxy-based institutional proxy for paywalled PDF downloads
-- Currently working on: Nothing — Phase 8 done
+- Phase: 9 (End-to-End LLM Pipeline Tests) — COMPLETE + post-Phase 9 bug fixes
+- Last completed: Fixed 3 bugs found during Phase 9 testing
+- Currently working on: Nothing
 - Blockers: None
 
 ## Architecture
@@ -38,6 +38,7 @@
 - [x] **utils/api_clients.py** (S2, OpenAlex, CrossRef, **Unpaywall, CORE**)
 - [x] **config/proxy.yaml** (institutional proxy config with 11 publisher domains)
 - [x] tests/ (8 test files, 123 unit tests total)
+- [x] **tests/test_llm_pipeline.py** (5 LLM pipeline tests: discover, plan, write, review, full chain)
 
 ## Phase 6 — Reference Acquisition Pipeline (COMPLETE)
 - [x] Paper model + DB: added `pdf_url` field, migration, `update_paper_pdf()`, `get_papers_needing_pdf()`
@@ -86,6 +87,25 @@
 - [x] CLI: `config-proxy` (one-time setup with login test) + `proxy-download` (batch download with `--limit`/`--dry-run`)
 - [x] Tests: 25 unit tests (config loading, domain matching, URL rewriting, login, download, pipeline integration)
 
+## Phase 9 — End-to-End LLM Pipeline Tests (COMPLETE)
+- [x] `pyproject.toml` — added `llm_pipeline` pytest marker
+- [x] `tests/test_llm_pipeline.py` — 5 test functions exercising real LLM calls:
+  - `test_stage_discover()` — STORM multi-perspective gap analysis + topic scoring (6 LLM calls)
+  - `test_stage_plan()` — thesis generation + reference selection + outline generation (3-8 LLM calls)
+  - `test_stage_write()` — 2-section manuscript with Self-Refine + abstract (5-7 LLM calls)
+  - `test_stage_review()` — Multi-Agent Debate with 3 reviewers + meta-reviewer (4 LLM calls)
+  - `test_full_chain()` — discover → plan → write → review end-to-end (uses temp DB copy)
+- [x] Dual run modes: `pytest -m llm_pipeline` or `python tests/test_llm_pipeline.py [stage]`
+- [x] Rate-limit retry with exponential backoff (5s → 10s → 20s)
+- [x] Cost tracking and reporting per stage
+- [x] Graceful skip when ZHIPUAI_API_KEY not set
+- [x] All 121 existing unit tests unchanged, no regressions
+
+## Post-Phase 9 Bug Fixes
+- [x] **Abstract generation overflow** (`writer.py`): Long manuscripts exceeded GLM-5 context window, producing empty abstracts. Fix: truncate to 12K chars (head+tail) before sending to LLM.
+- [x] **CrossRef search noise** (`searcher.py`, `api_clients.py`): CrossRef `query` parameter returned completely irrelevant results (Trump tariffs, dental calculus for a comparative literature query). Fix: switched to `query.bibliographic` (title/abstract only) + keyword overlap filtering on titles.
+- [x] **Plan stage redundant acquisition** (`planner.py`, `orchestrator.py`): `create_plan()` ran full reference acquisition pipeline (~20min) even when orchestrator already did it in a prior step. Fix: added `skip_acquisition` parameter; orchestrator now skips it; tests use `skip_acquisition=True`.
+
 ## Real-world Testing Results
 - API search (OpenAlex/CrossRef): works, returns metadata + some pdf_urls
 - Semantic Scholar: works but easily rate-limited (429) without API key
@@ -106,7 +126,8 @@
 - `tests/test_integration_apis.py` — 14 integration tests (real API calls)
 - `tests/test_proxy_session.py` — 25 unit tests (config, domain matching, URL rewriting, login, download, pipeline integration)
 - `tests/test_e2e.py` — 6 end-to-end tests (full workflow)
-- **Total: 123 unit tests passed, all existing tests unchanged**
+- `tests/test_llm_pipeline.py` — 5 LLM pipeline tests (real API calls, skipped without key)
+- **Total: 121 unit tests + 5 LLM pipeline tests, all passing (LLM tests skip without ZHIPUAI_API_KEY)**
 
 ## Key Decisions
 - LiteLLM as unified LLM gateway (see decisions.md #001)
@@ -162,7 +183,8 @@ proxy-download [--limit N] → DOI→出版商URL→代理重写→下载+索引
 
 ## Notes for Next Session
 - CNKI source is a stub (needs institutional API access)
-- LLM-powered pipeline stages (discover, plan, write, review) need API keys to test end-to-end
+- LLM pipeline tests: `python tests/test_llm_pipeline.py discover` (or plan/write/review/chain/all)
+- LLM tests via pytest: `pytest tests/test_llm_pipeline.py -m llm_pipeline -v` (requires ZHIPUAI_API_KEY)
 - Streamlit dashboard: run with `streamlit run dashboard.py`
 - Scheduler: run with `ai-researcher scheduler` (blocks until Ctrl+C)
 - Embeddings: GLM embedding-3 API (requires ZHIPUAI_API_KEY env var)

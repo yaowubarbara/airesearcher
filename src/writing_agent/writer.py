@@ -383,10 +383,20 @@ class WritingAgent:
             f"for the following research paper. Write in {language_name}."
         )
 
+        # Truncate long manuscripts to fit context window.
+        # Keep intro + conclusion (most important for abstract) with a middle sample.
+        max_chars = 12000
+        if len(full_text) > max_chars:
+            head = full_text[: max_chars // 2]
+            tail = full_text[-(max_chars // 2) :]
+            truncated_text = head + "\n\n[...middle sections omitted...]\n\n" + tail
+        else:
+            truncated_text = full_text
+
         user_prompt = (
             f"THESIS: {plan.thesis_statement}\n"
             f"TARGET JOURNAL: {plan.target_journal}\n\n"
-            f"FULL MANUSCRIPT TEXT:\n\"\"\"\n{full_text}\n\"\"\"\n\n"
+            f"FULL MANUSCRIPT TEXT:\n\"\"\"\n{truncated_text}\n\"\"\"\n\n"
             f"Write an abstract of 150-250 words summarizing the argument, "
             f"methodology, key findings, and contribution of this paper."
         )
