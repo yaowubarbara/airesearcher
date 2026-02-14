@@ -223,6 +223,7 @@ def create_workflow(
                 topic=topic,
                 target_journal=state.target_journal,
                 language=language,
+                skip_acquisition=True,  # already done in acquire_refs node
             )
 
             return {

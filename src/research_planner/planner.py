@@ -38,6 +38,7 @@ class ResearchPlanner:
         target_journal: str,
         language: Language = Language.EN,
         journal_style_path: Optional[str] = None,
+        skip_acquisition: bool = False,
     ) -> ResearchPlan:
         """Create a comprehensive research plan for a given topic.
 
@@ -47,6 +48,14 @@ class ResearchPlanner:
         3. Load journal style profile if available
         4. Generate detailed outline
         5. Store plan in database
+
+        Args:
+            topic: Topic proposal with research question and gap.
+            target_journal: Target journal name.
+            language: Target writing language.
+            journal_style_path: Optional path to journal style YAML.
+            skip_acquisition: If True, skip the reference acquisition step
+                (useful when references are already in the DB).
         """
         # Step 1: Generate thesis statement
         thesis = await self._generate_thesis(
@@ -54,21 +63,27 @@ class ResearchPlanner:
         )
 
         # Step 1.5: Acquire references from APIs for this topic
-        try:
-            from src.reference_acquisition.pipeline import ReferenceAcquisitionPipeline
-            acq_pipeline = ReferenceAcquisitionPipeline(self.db, self.vs)
-            acq_report = await acq_pipeline.acquire_references(
-                topic.research_question, max_results=50
-            )
+        if not skip_acquisition:
+            try:
+                from src.reference_acquisition.pipeline import ReferenceAcquisitionPipeline
+                acq_pipeline = ReferenceAcquisitionPipeline(self.db, self.vs)
+                acq_report = await acq_pipeline.acquire_references(
+                    topic.research_question, max_results=50
+                )
+                import logging
+                logging.getLogger(__name__).info(
+                    "Acquired references: %s", acq_report.summary()
+                )
+            except Exception:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Reference acquisition failed, proceeding with existing data",
+                    exc_info=True,
+                )
+        else:
             import logging
             logging.getLogger(__name__).info(
-                "Acquired references: %s", acq_report.summary()
-            )
-        except Exception:
-            import logging
-            logging.getLogger(__name__).warning(
-                "Reference acquisition failed, proceeding with existing data",
-                exc_info=True,
+                "Skipping reference acquisition (skip_acquisition=True)"
             )
 
         # Step 2: Select references with Corrective RAG

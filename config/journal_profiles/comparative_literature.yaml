@@ -1,51 +1,47 @@
-journal:
-  name: "Comparative Literature"
-  issn: "0010-4124"
-  publisher: "Duke University Press"
-  language: "en"
-
+journal_info:
+  name: Comparative Literature
+  issn: null
+  publisher: null
+  language: en
+  scope: null
+  url: null
 formatting:
-  citation_style: "MLA 9th edition"
-  citation_method: "parenthetical"
-  bibliography: true
-  bibliography_title: "Works Cited"
-  bibliography_sort: "alphabetical_by_author"
-
-  abstract:
-    required: true
-    max_words: 150
-    language: "en"
-
-  word_limit: "8000-10000"
-  sections:
-    use_numbered_headings: false
-    heading_style: "centered_bold"
-
-  block_quote:
-    threshold_words: 40
-    indent: true
-    font_size: "reduced"
-
-  footnotes:
-    style: "endnote"
-    numbering: "sequential"
-
+  citation_style: MLA
+  citation_method: parenthetical
+  bibliography: REFERENCES
+  abstract: none
+  word_limit: null
+  block_quote: indent
+  footnotes: footnotes
   reference_examples:
-    book: 'Spivak, Gayatri Chakravorty. *Death of a Discipline*. Columbia UP, 2003.'
-    article: 'Moretti, Franco. "Conjectures on World Literature." *New Left Review* 1 (2000): 54-68.'
-    chapter: 'Damrosch, David. "World Literature in a Postcanonical, Hypercanonical Age." *Comparative Literature in an Age of Globalization*, edited by Haun Saussy, Johns Hopkins UP, 2006, pp. 43-53.'
-
+  - type: book
+    example: Seuss, Dr. Horton Hears a Who! Random House, 1954.
+  - type: article
+    example: Shalamov, Varlam. "The National Borders of Poetry and Free Verse." 1963.
   writing_conventions:
-    - "Avoid first person singular; use 'this essay argues' formulations"
-    - "Translations of non-English quotations in main text, original in footnote"
-    - "Close reading passages typically 1-2 paragraphs of sustained analysis"
-
+  - Original language quotations are provided with English translations in parentheses
+    or block
+  - Epigraphs are used to frame the argument
+  - Substantive footnotes are employed for discursive asides
+  - Author names appear in uppercase at the start of the text
 learned_patterns:
-  avg_references: 35
-  avg_footnotes: 28
-  avg_close_reading_passages: "4-6"
-  common_theoretical_frameworks:
-    - "world literature theory"
-    - "translation studies"
-    - "postcolonial criticism"
-  typical_structure: "intro → theoretical framework → close reading sections → comparative synthesis → conclusion"
+  avg_paragraph_length: 153
+  avg_sentence_length: 33
+  passive_voice_ratio: 0.15
+  common_section_headings:
+  - REFERENCES
+  typical_argument_structures:
+  - Close reading of primary texts
+  - Historical and philological contextualization
+  - Theoretical application (e.g., postcolonial, political theory)
+  frequent_theoretical_frameworks:
+  - Philology
+  - Postcolonial Studies
+  - Political Theory
+  - Digital Humanities
+  hedging_frequency: medium
+  notes:
+  - The journal features significant multilingual engagement, citing sources in Spanish,
+    Russian, and German.
+  - Articles often begin immediately with text or epigraphs rather than abstracts.
+  - Published by Duke University Press on behalf of the University of Oregon.

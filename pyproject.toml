@@ -51,4 +51,5 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
     "integration: tests that hit real external APIs (may be slow)",
+    "llm_pipeline: end-to-end tests requiring ZHIPUAI_API_KEY (costs money)",
 ]
