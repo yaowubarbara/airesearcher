@@ -1,0 +1,2 @@
+[console_scripts]
+ai-researcher = cli:main

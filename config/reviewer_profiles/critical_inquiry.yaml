@@ -1,0 +1,32 @@
+journal: "Critical Inquiry"
+review_style:
+  strictness: very_high
+  focus_areas:
+    - "intellectual ambition and originality"
+    - "interdisciplinary breadth and depth"
+    - "engagement with contemporary critical debates"
+    - "quality and force of the writing itself"
+  common_rejection_reasons:
+    - "too narrowly disciplinary; lacks broader intellectual stakes"
+    - "argument not sufficiently original or provocative"
+    - "prose lacks the essayistic quality expected by the journal"
+    - "theoretical engagement superficial or outdated"
+  expected_reference_count: "40-60"
+  expected_close_reading_passages: "2-4"
+  preferred_theoretical_frameworks:
+    - "deconstruction (Derrida, de Man)"
+    - "biopolitics (Foucault, Agamben, Mbembe)"
+    - "visual culture and image theory (Mitchell)"
+    - "critical race theory (Spillers, Wynter, Hartman)"
+    - "media theory (Kittler, Hansen)"
+    - "queer theory (Sedgwick, Muñoz)"
+  editorial_preferences:
+    - "Strongly favors groundbreaking, field-defining essays"
+    - "Values essayistic style: the argument should be a pleasure to read"
+    - "Interdisciplinary work across arts, humanities, and social theory"
+    - "Occasionally publishes creative/experimental critical writing"
+    - "High bar for theoretical sophistication"
+learned_from_recent_publications:
+  hot_topics: []
+  frequent_authors_cited: []
+  avg_word_count: 0

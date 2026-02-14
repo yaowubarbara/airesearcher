@@ -1,0 +1,55 @@
+journal:
+  name: "Critical Inquiry"
+  issn: "0093-1896"
+  publisher: "University of Chicago Press"
+  language: "en"
+
+formatting:
+  citation_style: "Chicago 17th edition (notes-bibliography)"
+  citation_method: "footnote"
+  bibliography: true
+  bibliography_title: "Works Cited"
+  bibliography_sort: "alphabetical_by_author"
+
+  abstract:
+    required: false
+    max_words: 0
+    language: "en"
+
+  word_limit: "8000-15000"
+  sections:
+    use_numbered_headings: false
+    heading_style: "centered_roman"
+
+  block_quote:
+    threshold_words: 40
+    indent: true
+    font_size: "reduced"
+
+  footnotes:
+    style: "footnote"
+    numbering: "sequential"
+
+  reference_examples:
+    book: 'Butler, Judith. *Gender Trouble: Feminism and the Subversion of Identity*. New York: Routledge, 1990.'
+    article: 'Mitchell, W. J. T. "What Do Pictures Want?" *Critical Inquiry* 22, no. 1 (1995): 71-82.'
+    chapter: 'Spivak, Gayatri Chakravorty. "Can the Subaltern Speak?" In *Marxism and the Interpretation of Culture*, edited by Cary Nelson and Lawrence Grossberg, 271-313. Urbana: University of Illinois Press, 1988.'
+
+  writing_conventions:
+    - "Highly interdisciplinary: literature, philosophy, visual arts, media, political theory"
+    - "Essay-like style with strong authorial voice"
+    - "Theoretical sophistication expected; engage with Continental philosophy"
+    - "First person is standard and expected"
+
+learned_patterns:
+  avg_references: 45
+  avg_footnotes: 50
+  avg_close_reading_passages: "2-4"
+  common_theoretical_frameworks:
+    - "deconstruction"
+    - "visual culture / image theory"
+    - "biopolitics"
+    - "media theory"
+    - "critical race theory"
+    - "gender and queer theory"
+  typical_structure: "essayistic opening → theoretical problem → extended analysis → speculative conclusion"

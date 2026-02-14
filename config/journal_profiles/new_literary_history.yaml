@@ -1,0 +1,54 @@
+journal:
+  name: "New Literary History"
+  issn: "0028-6087"
+  publisher: "Johns Hopkins University Press"
+  language: "en"
+
+formatting:
+  citation_style: "Chicago 17th edition (notes-bibliography)"
+  citation_method: "footnote"
+  bibliography: true
+  bibliography_title: "Works Cited"
+  bibliography_sort: "alphabetical_by_author"
+
+  abstract:
+    required: true
+    max_words: 200
+    language: "en"
+
+  word_limit: "8000-12000"
+  sections:
+    use_numbered_headings: false
+    heading_style: "centered_bold"
+
+  block_quote:
+    threshold_words: 40
+    indent: true
+    font_size: "reduced"
+
+  footnotes:
+    style: "footnote"
+    numbering: "sequential"
+
+  reference_examples:
+    book: 'Culler, Jonathan. *Theory of the Lyric*. Cambridge, MA: Harvard University Press, 2015.'
+    article: 'Felski, Rita. "Context Stinks!" *New Literary History* 42, no. 4 (2011): 573-591.'
+    chapter: 'De Man, Paul. "The Resistance to Theory." In *The Resistance to Theory*, 3-20. Minneapolis: University of Minnesota Press, 1986.'
+
+  writing_conventions:
+    - "Theoretical argumentation should engage with the journal's intellectual tradition (formalism, hermeneutics, reception theory)"
+    - "Translations of non-English quotations in main text, original in footnote"
+    - "Encourage interdisciplinary approaches: philosophy, history, cognitive science"
+    - "First person is acceptable when making methodological arguments"
+
+learned_patterns:
+  avg_references: 40
+  avg_footnotes: 35
+  avg_close_reading_passages: "3-5"
+  common_theoretical_frameworks:
+    - "formalism and literary theory"
+    - "hermeneutics"
+    - "reception theory / reader response"
+    - "affect theory"
+    - "new materialism"
+  typical_structure: "intro (problem statement) → theoretical engagement → case studies / readings → synthesis → conclusion"

@@ -1,0 +1,27 @@
+journal: "PMLA"
+review_style:
+  strictness: very_high
+  focus_areas:
+    - "theoretical sophistication"
+    - "interdisciplinary engagement"
+    - "scholarly significance beyond subfield"
+  common_rejection_reasons:
+    - "argument too narrow for PMLA's broad readership"
+    - "insufficient theoretical grounding"
+    - "methodology not clearly articulated"
+  expected_reference_count: "35-50"
+  expected_close_reading_passages: "3-5"
+  preferred_theoretical_frameworks:
+    - "interdisciplinary approaches"
+    - "new formalism"
+    - "critical race theory"
+    - "gender and sexuality studies"
+    - "digital humanities"
+  editorial_preferences:
+    - "Papers must be of interest to the broad MLA membership"
+    - "Strong preference for methodological explicitness"
+    - "Welcomes non-traditional approaches if well-justified"
+learned_from_recent_publications:
+  hot_topics: []
+  frequent_authors_cited: []
+  avg_word_count: 0

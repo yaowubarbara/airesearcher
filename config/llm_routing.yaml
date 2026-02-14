@@ -1,0 +1,119 @@
+# Provider credentials for models that need custom endpoints
+providers:
+  glm:
+    api_base: "https://open.bigmodel.cn/api/paas/v4"
+    api_key_env: "ZHIPUAI_API_KEY"
+
+routing:
+  # Chinese journal writing -> GLM preferred (most natural Chinese expression)
+  writing_zh:
+    primary: openai/glm-5
+    fallback: openai/glm-5
+    provider: glm
+    temperature: 0.7
+    max_tokens: 16000
+
+  # English/French close reading
+  close_reading:
+    primary: openai/glm-5
+    fallback: openai/glm-5
+    provider: glm
+    temperature: 0.3
+    max_tokens: 12000
+
+  # Long document full analysis
+  long_document_analysis:
+    primary: openai/glm-5
+    fallback: openai/glm-5
+    provider: glm
+    temperature: 0.3
+    max_tokens: 16000
+
+  # Topic analysis, reasoning
+  topic_discovery:
+    primary: openai/glm-5
+    fallback: openai/glm-5
+    provider: glm
+    temperature: 0.5
+    max_tokens: 12000
+
+  # Metadata processing, formatting
+  metadata_processing:
+    primary: openai/glm-5
+    fallback: openai/glm-5
+    provider: glm
+    temperature: 0.1
+    max_tokens: 8000
+
+  # Self-review / quality check
+  self_review:
+    primary: openai/glm-5
+    fallback: openai/glm-5
+    provider: glm
+    temperature: 0.3
+    max_tokens: 12000
+
+  # French writing
+  writing_fr:
+    primary: openai/glm-5
+    fallback: openai/glm-5
+    provider: glm
+    temperature: 0.7
+    max_tokens: 16000
+
+  # English writing
+  writing_en:
+    primary: openai/glm-5
+    fallback: openai/glm-5
+    provider: glm
+    temperature: 0.7
+    max_tokens: 16000
+
+  # Generic writing (language auto-detected)
+  writing:
+    primary: openai/glm-5
+    fallback: openai/glm-5
+    provider: glm
+    temperature: 0.7
+    max_tokens: 16000
+
+  # Self-Refine critique pass
+  critique:
+    primary: openai/glm-5
+    fallback: openai/glm-5
+    provider: glm
+    temperature: 0.3
+    max_tokens: 12000
+
+  # Gap analysis / multi-perspective questioning
+  gap_analysis:
+    primary: openai/glm-5
+    fallback: openai/glm-5
+    provider: glm
+    temperature: 0.5
+    max_tokens: 12000
+
+  # Reference verification (needs precision)
+  reference_verification:
+    primary: openai/glm-5
+    fallback: openai/glm-5
+    provider: glm
+    temperature: 0.0
+    max_tokens: 8000
+
+  # Cover letter / response to reviewers
+  correspondence:
+    primary: openai/glm-5
+    fallback: openai/glm-5
+    provider: glm
+    temperature: 0.5
+    max_tokens: 10000
+
+# Default settings
+defaults:
+  primary: openai/glm-5
+  provider: glm
+  temperature: 0.3
+  max_tokens: 12000
+  timeout: 180
+  max_retries: 2
