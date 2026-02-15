@@ -1,55 +1,80 @@
-"""Embedding generation using GLM embedding-3 API (ZhipuAI).
+"""Embedding generation via OpenRouter or ZhipuAI API.
 
-Replaces the previous local sentence-transformers approach to avoid
-the ~9GB disk footprint of torch + nvidia + the E5-large model weights.
+Supports two backends (selected via EMBEDDING_BACKEND env var):
+  - "openrouter" (default): Uses OpenRouter API with OpenAI-compatible
+    embedding models (e.g. text-embedding-3-small).  Requires
+    OPENROUTER_API_KEY env var.
+  - "zhipuai": Uses GLM embedding-3 API.  Requires ZHIPUAI_API_KEY env var.
 
-The GLM embedding-3 model produces 2048-dim vectors by default.  We
-request 1024-dim output to stay consistent with the previous E5-large
-dimensionality and to reduce storage in ChromaDB.
+Both produce 1024-dim vectors to stay consistent with ChromaDB storage.
 
-Environment variable required:
-    ZHIPUAI_API_KEY  –  your ZhipuAI platform API key.
+Environment variables:
+    EMBEDDING_BACKEND     – "openrouter" or "zhipuai" (default: "openrouter")
+    OPENROUTER_API_KEY    – OpenRouter API key (when backend=openrouter)
+    ZHIPUAI_API_KEY       – ZhipuAI API key (when backend=zhipuai)
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import time
 from typing import Optional
 
 import httpx
 
 logger = logging.getLogger(__name__)
 
-# GLM embedding API endpoint
-_API_URL = "https://open.bigmodel.cn/api/paas/v4/embeddings"
+# ---------------------------------------------------------------------------
+# Backend configuration
+# ---------------------------------------------------------------------------
 
-# Model name on the ZhipuAI platform
-MODEL_NAME = "embedding-3"
+_BACKEND = os.environ.get("EMBEDDING_BACKEND", "openrouter").lower()
 
-# Dimension of the returned vectors (embedding-3 supports 256 / 1024 / 2048)
+# OpenRouter settings
+_OPENROUTER_API_URL = "https://openrouter.ai/api/v1/embeddings"
+_OPENROUTER_MODEL = "openai/text-embedding-3-large"
+
+# ZhipuAI settings
+_ZHIPUAI_API_URL = "https://open.bigmodel.cn/api/paas/v4/embeddings"
+_ZHIPUAI_MODEL = "embedding-3"
+
+# Shared settings
 EMBEDDING_DIM = 1024
-
-# Maximum texts per single API call (ZhipuAI batch limit)
 _MAX_BATCH_SIZE = 64
-
-# HTTP timeout in seconds
 _TIMEOUT = 60
+
+# Retry settings
+_MAX_RETRIES = 3
+_RETRY_DELAY = 10  # seconds
 
 
 def _get_api_key() -> str:
-    """Return the ZhipuAI API key from environment."""
-    key = os.environ.get("ZHIPUAI_API_KEY", "")
-    if not key:
-        raise RuntimeError(
-            "ZHIPUAI_API_KEY environment variable is not set. "
-            "Get an API key at https://open.bigmodel.cn/"
-        )
-    return key
+    """Return the API key for the configured backend."""
+    if _BACKEND == "openrouter":
+        key = os.environ.get("OPENROUTER_API_KEY", "")
+        if not key:
+            raise RuntimeError(
+                "OPENROUTER_API_KEY environment variable is not set. "
+                "Get an API key at https://openrouter.ai/"
+            )
+        return key
+    else:
+        key = os.environ.get("ZHIPUAI_API_KEY", "")
+        if not key:
+            raise RuntimeError(
+                "ZHIPUAI_API_KEY environment variable is not set. "
+                "Get an API key at https://open.bigmodel.cn/"
+            )
+        return key
+
+
+# Keep old name for backward compatibility
+MODEL_NAME = _ZHIPUAI_MODEL if _BACKEND == "zhipuai" else _OPENROUTER_MODEL
 
 
 class EmbeddingModel:
-    """GLM embedding-3 API wrapper.
+    """Embedding API wrapper supporting OpenRouter and ZhipuAI backends.
 
     Drop-in replacement for the previous sentence-transformers based class.
 
@@ -62,10 +87,17 @@ class EmbeddingModel:
 
     def __init__(
         self,
-        model_name: str = MODEL_NAME,
+        model_name: str | None = None,
         dimensions: int = EMBEDDING_DIM,
+        backend: str | None = None,
     ):
-        self._model_name = model_name
+        self._backend = (backend or _BACKEND).lower()
+        if model_name:
+            self._model_name = model_name
+        elif self._backend == "openrouter":
+            self._model_name = _OPENROUTER_MODEL
+        else:
+            self._model_name = _ZHIPUAI_MODEL
         self._dimensions = dimensions
         self._client: Optional[httpx.Client] = None
 
@@ -75,34 +107,53 @@ class EmbeddingModel:
         return self._client
 
     def _call_api(self, texts: list[str]) -> list[list[float]]:
-        """Call the GLM embedding API for a batch of texts.
+        """Call the embedding API for a batch of texts.
 
-        Args:
-            texts: Up to _MAX_BATCH_SIZE texts.
-
-        Returns:
-            List of embedding vectors in the same order as *texts*.
+        Includes retry logic for rate limiting (429 errors).
         """
         api_key = _get_api_key()
         client = self._get_client()
 
-        response = client.post(
-            _API_URL,
-            headers={
+        if self._backend == "openrouter":
+            url = _OPENROUTER_API_URL
+            headers = {
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
-            },
-            json={
+            }
+            payload = {
                 "model": self._model_name,
                 "input": texts,
                 "dimensions": self._dimensions,
-            },
-        )
-        response.raise_for_status()
+            }
+        else:
+            url = _ZHIPUAI_API_URL
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "model": self._model_name,
+                "input": texts,
+                "dimensions": self._dimensions,
+            }
+
+        for attempt in range(1, _MAX_RETRIES + 1):
+            response = client.post(url, headers=headers, json=payload)
+            if response.status_code == 429:
+                wait = _RETRY_DELAY * attempt
+                logger.warning(
+                    "Rate limited (attempt %d/%d), waiting %ds...",
+                    attempt, _MAX_RETRIES, wait,
+                )
+                time.sleep(wait)
+                continue
+            response.raise_for_status()
+            break
+        else:
+            # All retries exhausted
+            response.raise_for_status()
 
         data = response.json()
-        # Response data[i] has {"index": i, "embedding": [...]}
-        # Sort by index to guarantee order matches input order.
         items = sorted(data["data"], key=lambda x: x["index"])
         return [item["embedding"] for item in items]
 
@@ -116,15 +167,7 @@ class EmbeddingModel:
         *,
         is_query: bool = False,
     ) -> list[float]:
-        """Generate an embedding vector for a single text string.
-
-        Args:
-            text: The input text to embed.
-            is_query: Accepted for API compatibility but not used by GLM.
-
-        Returns:
-            A list of floats representing the embedding vector.
-        """
+        """Generate an embedding vector for a single text string."""
         return self.generate_embeddings([text], is_query=is_query)[0]
 
     def generate_embeddings(
@@ -135,17 +178,7 @@ class EmbeddingModel:
         batch_size: int = _MAX_BATCH_SIZE,
         show_progress: bool = False,
     ) -> list[list[float]]:
-        """Generate embedding vectors for a batch of texts.
-
-        Args:
-            texts: List of input texts to embed.
-            is_query: Accepted for API compatibility but not used by GLM.
-            batch_size: Number of texts per API call (max 64).
-            show_progress: Ignored (kept for interface compatibility).
-
-        Returns:
-            A list of embedding vectors, one per input text.
-        """
+        """Generate embedding vectors for a batch of texts."""
         if not texts:
             return []
 
@@ -155,7 +188,7 @@ class EmbeddingModel:
         for start in range(0, len(texts), effective_batch):
             batch = texts[start : start + effective_batch]
             logger.debug(
-                "Embedding batch %d–%d of %d texts",
+                "Embedding batch %d-%d of %d texts",
                 start,
                 start + len(batch),
                 len(texts),

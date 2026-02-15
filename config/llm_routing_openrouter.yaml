@@ -1,0 +1,125 @@
+# Mixed-model routing config — optimal model per task type
+# Uses OpenRouter as unified gateway for all models
+providers:
+  openrouter:
+    api_base: "https://openrouter.ai/api/v1"
+    api_key_env: "OPENROUTER_API_KEY"
+
+routing:
+  # --- Writing (quality-critical, use strongest models) ---
+
+  # English/French academic writing — Opus for best quality
+  writing_en:
+    primary: openrouter/anthropic/claude-opus-4-5
+    fallback: openrouter/anthropic/claude-sonnet-4-5
+    provider: openrouter
+    temperature: 0.7
+    max_tokens: 16000
+
+  writing_fr:
+    primary: openrouter/anthropic/claude-opus-4-5
+    fallback: openrouter/anthropic/claude-sonnet-4-5
+    provider: openrouter
+    temperature: 0.7
+    max_tokens: 16000
+
+  # Chinese writing — Sonnet 4.5 sufficient (Opus advantage minimal for Chinese)
+  writing_zh:
+    primary: openrouter/anthropic/claude-sonnet-4-5
+    fallback: openrouter/anthropic/claude-sonnet-4
+    provider: openrouter
+    temperature: 0.7
+    max_tokens: 16000
+
+  # Generic writing (language auto-detected)
+  writing:
+    primary: openrouter/anthropic/claude-opus-4-5
+    fallback: openrouter/anthropic/claude-sonnet-4-5
+    provider: openrouter
+    temperature: 0.7
+    max_tokens: 16000
+
+  # Close reading — needs strongest comprehension
+  close_reading:
+    primary: openrouter/anthropic/claude-opus-4-5
+    fallback: openrouter/anthropic/claude-sonnet-4-5
+    provider: openrouter
+    temperature: 0.3
+    max_tokens: 12000
+
+  # --- Analysis (Sonnet 4 sufficient) ---
+
+  # Self-Refine critique pass
+  critique:
+    primary: openrouter/anthropic/claude-sonnet-4
+    fallback: openrouter/anthropic/claude-sonnet-4-5
+    provider: openrouter
+    temperature: 0.3
+    max_tokens: 12000
+
+  # Self-review / quality check
+  self_review:
+    primary: openrouter/anthropic/claude-sonnet-4
+    fallback: openrouter/anthropic/claude-sonnet-4-5
+    provider: openrouter
+    temperature: 0.3
+    max_tokens: 12000
+
+  # Topic analysis, reasoning
+  topic_discovery:
+    primary: openrouter/anthropic/claude-sonnet-4
+    fallback: openrouter/anthropic/claude-sonnet-4-5
+    provider: openrouter
+    temperature: 0.5
+    max_tokens: 12000
+
+  # Gap analysis / multi-perspective questioning
+  gap_analysis:
+    primary: openrouter/anthropic/claude-sonnet-4
+    fallback: openrouter/anthropic/claude-sonnet-4-5
+    provider: openrouter
+    temperature: 0.5
+    max_tokens: 12000
+
+  # Long document full analysis
+  long_document_analysis:
+    primary: openrouter/anthropic/claude-sonnet-4-5
+    fallback: openrouter/anthropic/claude-sonnet-4
+    provider: openrouter
+    temperature: 0.3
+    max_tokens: 16000
+
+  # Cover letter / response to reviewers
+  correspondence:
+    primary: openrouter/anthropic/claude-sonnet-4
+    fallback: openrouter/anthropic/claude-sonnet-4-5
+    provider: openrouter
+    temperature: 0.5
+    max_tokens: 10000
+
+  # --- Lightweight tasks (Haiku to minimize cost) ---
+
+  # Metadata processing, formatting
+  metadata_processing:
+    primary: openrouter/anthropic/claude-3.5-haiku
+    fallback: openrouter/anthropic/claude-sonnet-4
+    provider: openrouter
+    temperature: 0.1
+    max_tokens: 8000
+
+  # Reference verification (needs precision, not creativity)
+  reference_verification:
+    primary: openrouter/anthropic/claude-3.5-haiku
+    fallback: openrouter/anthropic/claude-sonnet-4
+    provider: openrouter
+    temperature: 0.0
+    max_tokens: 8000
+
+# Default fallback for unlisted task types
+defaults:
+  primary: openrouter/anthropic/claude-sonnet-4
+  provider: openrouter
+  temperature: 0.3
+  max_tokens: 12000
+  timeout: 180
+  max_retries: 2
