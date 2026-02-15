@@ -467,6 +467,7 @@ class TestCriticResponseParsing:
         # New dimensions should default gracefully
         assert "citation_sophistication" in scores
         assert "quote_paraphrase_ratio" in scores
+        assert "erudite_vocabulary" in scores
 
     def test_parse_invalid_json(self):
         from src.writing_agent.writer import _parse_critic_response

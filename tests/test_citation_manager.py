@@ -570,7 +570,7 @@ class TestExtractSurname:
 
 
 # ===========================================================================
-#  Phase 10.4: _parse_critic_response with 5 dimensions
+#  Phase 10.4: _parse_critic_response with 6 dimensions
 # ===========================================================================
 
 
@@ -582,6 +582,7 @@ class TestParseCriticResponse:
             "citation_density": 3,
             "citation_sophistication": 4,
             "quote_paraphrase_ratio": 3,
+            "erudite_vocabulary": 5,
             "revision_instructions": "",
         })
         scores, instructions = _parse_critic_response(raw)
@@ -590,6 +591,7 @@ class TestParseCriticResponse:
         assert scores["citation_density"] == 3
         assert scores["citation_sophistication"] == 4
         assert scores["quote_paraphrase_ratio"] == 3
+        assert scores["erudite_vocabulary"] == 5
         assert instructions == ""
 
     def test_backward_compatible_defaults(self):
@@ -604,6 +606,7 @@ class TestParseCriticResponse:
         assert scores["close_reading_depth"] == 4
         assert scores["citation_sophistication"] == 3  # default
         assert scores["quote_paraphrase_ratio"] == 3  # default
+        assert scores["erudite_vocabulary"] == 3  # default
 
     def test_with_revision_instructions(self):
         raw = json.dumps({
@@ -632,19 +635,21 @@ class TestParseCriticResponse:
         assert scores["citation_density"] == 1
         assert scores["citation_sophistication"] == 1
         assert scores["quote_paraphrase_ratio"] == 1
+        assert scores["erudite_vocabulary"] == 1
         assert instructions != ""
 
     def test_empty_response(self):
         scores, instructions = _parse_critic_response("")
         assert all(v == 1 for v in scores.values())
 
-    def test_all_five_keys_present(self):
+    def test_all_six_keys_present(self):
         raw = json.dumps({
             "close_reading_depth": 3,
             "argument_logic": 3,
             "citation_density": 3,
             "citation_sophistication": 3,
             "quote_paraphrase_ratio": 3,
+            "erudite_vocabulary": 3,
             "revision_instructions": "",
         })
         scores, _ = _parse_critic_response(raw)
@@ -654,6 +659,7 @@ class TestParseCriticResponse:
             "citation_density",
             "citation_sophistication",
             "quote_paraphrase_ratio",
+            "erudite_vocabulary",
         }
         assert set(scores.keys()) == expected_keys
 
