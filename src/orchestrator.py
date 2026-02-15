@@ -40,6 +40,7 @@ class WorkflowPhase(str, Enum):
     PLAN = "plan"
     WRITE = "write"
     VERIFY = "verify"
+    VERIFY_CITATIONS = "verify_citations"
     REVIEW = "review"
     HUMAN_REVIEW = "human_review"
     SUBMIT = "submit"
@@ -64,6 +65,7 @@ class WorkflowState:
     manuscript: Optional[dict] = None
     # Verification
     verification_report: Optional[dict] = None
+    citation_verification_report: Optional[dict] = None
     # Review
     review_result: Optional[dict] = None
     review_passed: bool = False
@@ -315,6 +317,52 @@ def create_workflow(
                 "errors": state.errors + [f"Verifier: {e}"],
             }
 
+    async def verify_citations_node(state: WorkflowState) -> dict:
+        """Verify inline citations against CrossRef/OpenAlex and annotate manuscript."""
+        from src.citation_verifier.pipeline import verify_manuscript_citations
+
+        if not state.manuscript:
+            return {"phase": WorkflowPhase.REVIEW.value}
+
+        try:
+            ms = Manuscript(**state.manuscript)
+            text = ms.full_text or ""
+
+            if not text.strip():
+                return {"phase": WorkflowPhase.REVIEW.value}
+
+            annotated_text, report = await verify_manuscript_citations(text)
+
+            # Update manuscript with annotated text
+            updated_manuscript = dict(state.manuscript)
+            updated_manuscript["full_text"] = annotated_text
+
+            logger.info(
+                "Citation verification: %d/%d verified, %d tags inserted",
+                report.verified,
+                report.total,
+                report.work_not_found + report.page_out_of_range,
+            )
+
+            return {
+                "phase": WorkflowPhase.REVIEW.value,
+                "manuscript": updated_manuscript,
+                "citation_verification_report": {
+                    "total": report.total,
+                    "verified": report.verified,
+                    "work_not_found": report.work_not_found,
+                    "page_unverifiable": report.page_unverifiable,
+                    "page_out_of_range": report.page_out_of_range,
+                    "summary": report.summary(),
+                },
+            }
+        except Exception as e:
+            logger.error("Citation verification failed: %s", e)
+            return {
+                "phase": WorkflowPhase.REVIEW.value,
+                "errors": state.errors + [f"CitationVerifier: {e}"],
+            }
+
     async def review_node(state: WorkflowState) -> dict:
         """Run self-review with multi-agent debate."""
         from src.self_review.reviewer import SelfReviewAgent
@@ -424,6 +472,7 @@ def create_workflow(
     workflow.add_node("plan", plan_node)
     workflow.add_node("write", write_node)
     workflow.add_node("verify", verify_node)
+    workflow.add_node("verify_citations", verify_citations_node)
     workflow.add_node("review", review_node)
     workflow.add_node("human_review", human_review_node)
     workflow.add_node("submit", submit_node)
@@ -438,7 +487,8 @@ def create_workflow(
     workflow.add_edge("acquire_refs", "plan")
     workflow.add_edge("plan", "write")
     workflow.add_edge("write", "verify")
-    workflow.add_edge("verify", "review")
+    workflow.add_edge("verify", "verify_citations")
+    workflow.add_edge("verify_citations", "review")
 
     # Review can loop back to write or proceed to human review
     def review_router(state: WorkflowState) -> str:
