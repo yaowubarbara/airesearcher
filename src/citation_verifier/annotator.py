@@ -11,8 +11,9 @@ from src.citation_verifier.engine import CitationVerification
 # Tag suffixes for each verification status
 _TAGS = {
     "work_not_found": "[VERIFY:work]",
-    "page_unverifiable": "[VERIFY:page]",
     "page_out_of_range": "[VERIFY:page-range]",
+    # page_unverifiable is intentionally omitted — book page numbers
+    # can't be checked without PDFs and are too common to flag.
 }
 
 

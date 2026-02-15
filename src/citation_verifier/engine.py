@@ -340,25 +340,30 @@ class CitationVerificationEngine:
     ) -> Optional[str]:
         """Scan text before citation for a title associated with the author.
 
-        Looks for patterns like: Author's *Title* or Author, *Title*
-        within 500 chars before the citation.
+        Looks for patterns like:
+        - Author's *Title*
+        - Author, *Title*
+        - Author ... in *Title* ... (Author Page)  [gap up to 300 chars]
+        - *Title* ... Author
+        within 800 chars before the citation.
         """
-        start = max(0, citation_pos - 500)
+        start = max(0, citation_pos - 800)
         context = text[start:citation_pos]
 
-        # Look for Author's *Title* or Author ... *Title*
         author_esc = re.escape(author)
         patterns = [
             # Author's *Title*
             rf"{author_esc}(?:'s|s')?\s+\*([^*]+)\*",
             # Author, *Title*
             rf"{author_esc},?\s+\*([^*]+)\*",
-            # in *Title* ... by Author (reverse order)
-            rf"\*([^*]+)\*[^*]{{0,100}}{author_esc}",
+            # Author ... *Title* with gap (real manuscripts have prose between)
+            rf"{author_esc}.{{1,300}}?\*([^*]+)\*",
+            # *Title* ... Author (reverse order)
+            rf"\*([^*]+)\*[^*]{{0,200}}{author_esc}",
         ]
 
         for pat in patterns:
-            m = re.search(pat, context, re.IGNORECASE)
+            m = re.search(pat, context, re.IGNORECASE | re.DOTALL)
             if m:
                 return m.group(1)
 
