@@ -23,6 +23,19 @@ class PaperStatus(str, enum.Enum):
     ANALYZED = "analyzed"
 
 
+class ReferenceType(str, enum.Enum):
+    """Classification of a reference's role in a scholarly argument."""
+
+    PRIMARY_LITERARY = "primary_literary"
+    SECONDARY_CRITICISM = "secondary_criticism"
+    THEORY = "theory"
+    METHODOLOGY = "methodology"
+    HISTORICAL_CONTEXT = "historical_context"
+    REFERENCE_WORK = "reference_work"
+    SELF_CITATION = "self_citation"
+    UNCLASSIFIED = "unclassified"
+
+
 class Paper(BaseModel):
     """A scholarly paper tracked by the system."""
 
@@ -63,6 +76,7 @@ class Reference(BaseModel):
     pages: Optional[str] = None
     doi: Optional[str] = None
     publisher: Optional[str] = None
+    ref_type: ReferenceType = ReferenceType.UNCLASSIFIED
     verified: bool = False
     verification_source: Optional[str] = None  # crossref, semantic_scholar, openalex
     formatted_mla: Optional[str] = None

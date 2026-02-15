@@ -1074,6 +1074,55 @@ def proxy_download(limit: int, dry_run: bool) -> None:
     asyncio.run(_run())
 
 
+@main.command(name="verify-citations")
+@click.argument("manuscript_path", type=click.Path(exists=True))
+@click.option("--output", "-o", default=None, help="Output path for annotated text")
+@click.option("--report", "-r", default=None, help="Output path for Markdown report")
+def verify_citations(manuscript_path: str, output: str | None, report: str | None) -> None:
+    """Verify inline citations in a manuscript against CrossRef/OpenAlex.
+
+    Parses MLA-style citations, checks each against academic APIs,
+    and inserts [VERIFY] tags where citations cannot be confirmed.
+
+    Example:
+        ai-researcher verify-citations data/demo_output/manuscript.md
+    """
+    from src.citation_verifier.pipeline import verify_manuscript_citations
+
+    async def _run():
+        text = Path(manuscript_path).read_text(encoding="utf-8")
+        console.print(f"Verifying citations in [bold]{manuscript_path}[/bold]...")
+
+        annotated, ver_report = await verify_manuscript_citations(text)
+
+        console.print(f"\n[bold]{ver_report.summary()}[/bold]")
+
+        # Show issues table
+        issues = [d for d in ver_report.details if d["status"] != "verified"]
+        if issues:
+            table = Table(title="Unverified Citations")
+            table.add_column("#", width=4)
+            table.add_column("Citation", max_width=40)
+            table.add_column("Status", width=18)
+            table.add_column("Notes", max_width=40)
+            for i, d in enumerate(issues):
+                status_str = d["status"].replace("_", " ")
+                table.add_row(str(i + 1), d["raw"][:40], status_str, d.get("notes", "")[:40])
+            console.print(table)
+
+        # Write annotated output
+        out_path = output or str(Path(manuscript_path).with_suffix(".verified.md"))
+        Path(out_path).write_text(annotated, encoding="utf-8")
+        console.print(f"\n[green]Annotated manuscript saved: {out_path}[/green]")
+
+        # Write report
+        if report:
+            Path(report).write_text(ver_report.to_markdown(), encoding="utf-8")
+            console.print(f"[green]Report saved: {report}[/green]")
+
+    asyncio.run(_run())
+
+
 @main.command()
 @click.option("--no-immediate", is_flag=True, help="Skip initial run, only schedule future runs")
 def scheduler(no_immediate: bool) -> None:

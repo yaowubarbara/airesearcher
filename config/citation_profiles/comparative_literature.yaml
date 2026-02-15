@@ -1,0 +1,328 @@
+# Citation Profile: Comparative Literature (Duke UP / U of Oregon)
+# Synthesized from 6 published articles (2019-2020):
+#   - Detue & Lacoste, "What Testimony Does to Literature" (Synthesis, 2020)
+#   - Kimmel, "Hushed Ballads" (CL 71.3, 2019)
+#   - Larson, "On the Borders of Free Verse" (CL 71.2, 2019)
+#   - Maslov & Nikitina, "Rhyme in European Verse" (CL 71.2, 2019)
+#   - Peterson, "Seuss and the Swerve of Singularity" (CL 71.3, 2019)
+#   - Sacks, "The Politics of Death and the Question of Palestine" (CL 71.4, 2019)
+
+journal: "Comparative Literature"
+
+# --- Reference Type Distribution ---
+# Target percentage ranges for each reference type in a well-balanced bibliography.
+# These are soft targets; the system should flag significant deviations, not enforce rigidly.
+reference_type_distribution:
+  primary_literary:
+    target_pct: [20, 40]
+    description: >
+      Literary works, testimonial texts, musical scores, early modern primary sources --
+      the objects of analysis. Always directly quoted, never merely paraphrased.
+      In CL, primary texts span multiple national traditions and languages.
+    observed_range: "19-45% across sample articles"
+  secondary_criticism:
+    target_pct: [25, 45]
+    description: >
+      Scholarly articles and monographs that analyze the primary texts or their tradition.
+      Includes philology, literary history, and specialized criticism. Usually paraphrased
+      with selective short quotation of key formulations.
+    observed_range: "35-41% across sample articles"
+  theory:
+    target_pct: [8, 25]
+    description: >
+      Philosophy, critical theory, and cross-disciplinary theoretical frameworks
+      (e.g., Derrida, Foucault, Spivak, Shklovsky, Kermode). Deployed surgically
+      for specific concepts, not engaged in exhaustive exegesis unless theory IS the
+      primary object of close reading.
+    observed_range: "8-34% (higher when theory is the primary object)"
+  methodology:
+    target_pct: [0, 10]
+    description: >
+      Works cited primarily for their methodological contribution (e.g., McKenzie
+      on bibliography, Parry/Lord on oral-formulaic theory, quantitative metrics).
+      Often overlaps with theory; classify here only when the method itself is the
+      point of citation.
+    observed_range: "0-15%"
+  historical_context:
+    target_pct: [0, 15]
+    description: >
+      Historical, social science, legal, and political sources that provide context
+      for the argument without being objects of literary analysis. Includes legal
+      documents, historical monographs, biographical sources.
+    observed_range: "0-21%"
+  reference_work:
+    target_pct: [0, 5]
+    description: >
+      Encyclopedias, dictionaries, bibliographic tools. Cited in footnotes for
+      specialist readers, not in body text.
+    observed_range: "0-9%"
+  self_citation:
+    target_pct: [0, 8]
+    description: >
+      Author's own prior work. Should be functionally integral (prior study that
+      the current paper extends), not gratuitous. 1-3 entries typical.
+    observed_range: "0-12% (typically 1-5 entries)"
+
+# --- Bibliography Size ---
+bibliography:
+  target_entries: [35, 60]
+  observed_range: "40-77 entries across sample articles"
+  median_observed: 47
+  notes: >
+    CL articles tend toward compact bibliographies with deep engagement per source.
+    A 35-entry bibliography with sustained engagement is preferable to 70 entries
+    with superficial coverage.
+
+# --- Citation Density ---
+citation_density:
+  avg_citations_per_page: [3.0, 5.5]
+  observed_range: "2.75-6.5 across sample articles"
+  median_observed: 4.3
+  density_pattern: >
+    Citation density is NOT uniform. Typical pattern:
+    - Introduction: moderate (framing references)
+    - Scholarly engagement / historiographic sections: HIGHEST density
+    - Close reading sections: LOW density (primary text only)
+    - Conclusion: LOW to MINIMAL (author's own synthesis)
+    Peterson and Maslov show an alternating rhythm; Sacks shows U-shaped pattern.
+  section_norms:
+    introduction: "moderate (3-4/page)"
+    theoretical_framing: "high (5-7/page)"
+    close_reading: "low (1-3/page, primarily primary text references)"
+    conclusion: "minimal (0-2/page)"
+
+# --- Quotation Patterns ---
+quotation:
+  overall_ratio: >
+    Direct quotation dominates over paraphrase. CL articles typically use
+    quotation for 40-85% of source engagement. Paraphrase without any embedded
+    quoted terms is rare (<10% of source engagement in most articles).
+  what_to_quote:
+    primary_texts: "ALWAYS directly quoted. The reader must see the actual words."
+    key_theoretical_formulations: >
+      Specific terms and phrases from theorists are quoted when the precise
+      language matters philosophically or analytically. Examples: Loseff's
+      'Aesopian language,' Derrida's 'absolute singularity,' Cru's 'choice of
+      the small.'
+    secondary_criticism: >
+      Mostly paraphrased, but memorable formulations and specific claims to be
+      interrogated are quoted. Quote when you intend to analyze or contest the
+      exact phrasing.
+    historical_context: "Paraphrased. Quoted only for striking formulations."
+  what_to_paraphrase:
+    - "General scholarly arguments and positions"
+    - "Historical background and context"
+    - "Factual claims from secondary sources"
+    - "Arguments you endorse without needing to analyze the wording"
+  quote_lengths:
+    short_phrase: "1-8 words -- most common; key terms, scare-quoted concepts"
+    sentence: "9-35 words -- important propositions and claims"
+    block_quote: >
+      35+ words, indented. Reserved for:
+      (a) primary literary texts that are objects of close reading,
+      (b) programmatically important statements from theorists,
+      (c) passages the argument will analyze word by word.
+      Typical: 2-14 block quotes per article.
+  block_quotes:
+    target_count: [2, 10]
+    observed_range: "2-21 across sample articles"
+    primary_text_dominance: >
+      Block quotes from primary literary texts outnumber those from
+      secondary/theoretical sources by roughly 3:1.
+
+# --- Quotation Introduction Strategies ---
+quote_introduction:
+  common_verbs:
+    - "writes"
+    - "argues"
+    - "notes"
+    - "observes"
+    - "suggests"
+    - "points out"
+    - "contends"
+    - "insists"
+    - "describes"
+    - "explains"
+    - "declares"
+    - "cautions"
+    - "recalls"
+  framing_patterns:
+    - "As [Author] writes in [Work], ..."
+    - "According to [Author], ..."
+    - "[Author] has argued that ..."
+    - "In [Author]'s formulation, ..."
+    - "What [Author] calls '[term]'"
+    - "[Author] goes further: ..."
+  advanced_techniques:
+    secondary_citation: >
+      'qtd. in' (MLA) for quoting through a mediating source. Common when
+      accessing primary witnesses through a critical anthology.
+    delayed_attribution: >
+      Withholding the author's name until after the quotation for rhetorical
+      effect (see Peterson on Derrida). Rare but powerful.
+    subjunctive_hedging: >
+      'might be heard as,' 'can be read as,' 'perhaps' -- models interpretive
+      openness rather than definitive claims (see Larson).
+    echo_chaining: >
+      Placing quotations from different authors side by side to demonstrate
+      intertextual echoes (see Larson on Shalamov/Pushkin/Blok).
+
+# --- Multilingual Handling ---
+multilingual:
+  expectation: >
+    CL expects engagement with sources in multiple languages. All 6 sample
+    articles cite works in 2-6 languages. Monolingual bibliographies signal
+    insufficient comparative engagement.
+  minimum_languages: 2
+  typical_languages: 3
+  handling_rules:
+    primary_text_quotations: >
+      Quote in the original language FIRST, then provide English translation.
+      For block quotes: original-language block followed by translation block.
+      For inline quotes: original in quotation marks, translation in parentheses
+      separated by semicolon.
+    secondary_criticism: >
+      Non-English secondary sources are cited in the original language in the
+      bibliography. In-text discussion is in the article's language.
+    technical_terms: >
+      Specialized terms from non-English scholarly traditions (e.g., Russian
+      Formalist terms, French prosodic terms) may be used inline without
+      translation if they are internationally recognized in the field.
+    translation_attribution: >
+      State translation policy in a footnote: 'All translations are my own
+      unless otherwise noted.' Mark modified translations: '(translation modified).'
+  observed_languages:
+    - "English, French, Spanish, Russian, German, Latin, Italian, Arabic, Armenian, Greek, Polish"
+
+# --- Footnote Conventions ---
+footnotes:
+  target_count: [8, 20]
+  observed_range: "8-20 across sample articles"
+  median_observed: 14
+  character: >
+    Footnotes in CL are SUBSTANTIVE, not mere reference pointers. They contain:
+    (a) bibliographic guidance clusters ('See X; as well as Y'),
+    (b) extended scholarly arguments that would interrupt the main text,
+    (c) additional quotations and cross-references,
+    (d) philological/textual notes and translation clarifications,
+    (e) methodological caveats and qualifications.
+    A typical footnote is 40-150 words. Some function as mini-essays.
+  functions:
+    bibliographic_guidance: >
+      Clusters of 'See...' references directing specialist readers to further
+      reading without interrupting the argument. Most common function.
+    substantive_discussion: >
+      Extended arguments, qualifications, or comparative observations that
+      enrich but are not essential to the main argument.
+    translation_notes: >
+      Clarification of translation choices, attribution of translations,
+      provision of original-language text.
+    acknowledgments: >
+      Thanks for manuscript access, conference feedback, or research support.
+      Typically in footnote 1 or an unnumbered acknowledgment note.
+
+# --- Citation Format ---
+citation_format:
+  system: "Chicago/MLA hybrid"
+  description: >
+    Comparative Literature uses a hybrid system: parenthetical author-page
+    citations (MLA-style, no year) in the body text, combined with substantive
+    footnotes (Chicago-style). Works Cited at the end, formatted alphabetically.
+  in_text:
+    single_work: "(Author Page)"
+    disambiguation: "(Author, Short Title Page)"
+    multiple_sources: "(Author1 Pages; Author2 Pages)"
+    secondary_citation: "(qtd. in Author, Work Page)"
+    page_only: "(Page) -- when author and work are clear from context"
+    no_year: true
+  bibliography:
+    title: "Works Cited"
+    arrangement: "alphabetical by author surname"
+    format: "Chicago/Turabian with MLA conventions"
+    non_english_titles: "given in original language; translations in parentheses for non-Latin scripts"
+    multiple_works_same_author: "separate full entries (no em-dash shorthand in most cases)"
+
+# --- Structural Conventions ---
+structure:
+  literature_review: >
+    NO separate literature review section. References are woven continuously
+    into the argument. Citation serves the argument, not the other way around.
+  conclusion_citations: >
+    The conclusion is typically citation-light or citation-free, allowing the
+    author's own synthesis to stand on its own authority.
+  no_abstract: >
+    CL articles typically begin immediately with text or epigraphs rather than
+    abstracts.
+  section_headings: >
+    Varied: some articles use titled sections, others use numbered sections
+    without titles, and some use no sections at all.
+
+# --- Reference Selection Principles ---
+# Distilled from cross-paper analysis of source selection strategies.
+selection_principles:
+  - name: "deep_engagement_over_breadth"
+    description: >
+      A compact bibliography with sustained engagement per source is valued over
+      an extensive bibliography with superficial coverage. 35-50 deeply engaged
+      sources preferred over 70+ lightly cited ones.
+  - name: "primary_text_privilege"
+    description: >
+      Primary literary/artistic texts are privileged as evidence. Arguments are
+      built on close reading of actual texts, not summaries of other scholars'
+      readings.
+  - name: "scholarly_genealogy"
+    description: >
+      The canonical scholarly genealogy for the topic must be represented.
+      Foundational scholars are engaged at length, not merely cited.
+  - name: "multilingual_competence"
+    description: >
+      The bibliography should demonstrate engagement with scholarship in the
+      languages of the field, not just Anglophone criticism. Monolingual
+      bibliographies are a red flag.
+  - name: "interdisciplinary_reach"
+    description: >
+      CL expects crossing disciplinary boundaries -- philology, musicology,
+      book history, performance studies, political theory, postcolonial studies,
+      translation studies, etc.
+  - name: "theory_surgical_not_exhaustive"
+    description: >
+      Theory is deployed for specific concepts and vocabulary, not engaged in
+      exhaustive exegesis (unless theory itself is the object of close reading).
+      Each theoretical source should contribute a concrete analytical tool.
+  - name: "recent_scholarship_present"
+    description: >
+      30-50% of entries should be from the last 15-20 years, demonstrating
+      currency. But foundational older works are equally essential.
+  - name: "every_source_actively_engaged"
+    description: >
+      No decorative or background citations. Every cited work should contribute
+      a term, phrase, argument, or piece of evidence that is actively taken up
+      in the text.
+  - name: "self_citation_calibrated"
+    description: >
+      1-3 self-citations integrated naturally, providing relevant prior work
+      on related topics. Not self-promotional.
+
+# --- Author Positioning Conventions ---
+positioning:
+  modes:
+    - name: "sympathetic_extension"
+      description: "Takes a framework and extends it into a new domain"
+      frequency: "most common"
+    - name: "dialectical_synthesis"
+      description: "Positions between opposing scholarly camps, constructing a third way"
+      frequency: "common"
+    - name: "immanent_critique"
+      description: "Reads an author against themselves through close attention to their own language"
+      frequency: "common"
+    - name: "continuator"
+      description: "Presents work as extending an established research tradition"
+      frequency: "common (especially in philological articles)"
+    - name: "corrective"
+      description: "Gentle correction of prior claims, often with new evidence"
+      frequency: "occasional"
+  tone: >
+    CL favors scholarly generosity and precision over polemics. Even disagreement
+    is typically framed through careful reading rather than dismissal. 'X is wrong'
+    is rare; 'X's language reveals...' or 'the evidence now suggests...' is
+    preferred.

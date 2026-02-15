@@ -91,11 +91,25 @@ Provide your review as JSON with exactly these keys:
     "close_reading_depth": <1-5>,
     "argument_coherence": <1-5>,
     "citation_quality": <1-5>,
-    "style_match": <1-5>
+    "style_match": <1-5>,
+    "citation_sophistication": <1-5>,
+    "quote_paraphrase_ratio": <1-5>
   }},
   "comments": ["<specific comment 1>", ...],
   "revision_suggestions": ["<actionable suggestion 1>", ...]
 }}
+
+Scoring rubric for new dimensions:
+- citation_sophistication: Does the manuscript use diverse citation methods \
+(direct quotation, paraphrase, block quotes, footnotes, secondary citations \
+via "qtd. in")? Does it vary introduction verbs (writes, argues, notes, \
+observes, contends, insists, etc.) rather than repeating the same verb? \
+Are citations integrated into the argument rather than dropped in?
+- quote_paraphrase_ratio: Is there an appropriate balance? Primary literary \
+texts should be directly quoted; secondary criticism mostly paraphrased with \
+selective quotation of key formulations; theory should quote precise terms \
+but paraphrase general arguments. Short phrases (1-8 words) should be the \
+most common quotation type.
 
 Return ONLY the JSON object, no additional text.
 """
@@ -115,7 +129,9 @@ Return your synthesis as JSON with exactly these keys:
     "close_reading_depth": <1-5>,
     "argument_coherence": <1-5>,
     "citation_quality": <1-5>,
-    "style_match": <1-5>
+    "style_match": <1-5>,
+    "citation_sophistication": <1-5>,
+    "quote_paraphrase_ratio": <1-5>
   }},
   "comments": ["<consolidated comment 1>", ...],
   "revision_instructions": ["<prioritized instruction 1>", ...],
@@ -221,6 +237,8 @@ class SelfReviewAgent:
                         "argument_coherence": 3,
                         "citation_quality": 3,
                         "style_match": 3,
+                        "citation_sophistication": 3,
+                        "quote_paraphrase_ratio": 3,
                     },
                     "comments": [raw_text],
                     "revision_suggestions": [],
@@ -282,6 +300,8 @@ class SelfReviewAgent:
             "argument_coherence",
             "citation_quality",
             "style_match",
+            "citation_sophistication",
+            "quote_paraphrase_ratio",
         ]
         averaged: dict[str, float] = {}
         for key in score_keys:

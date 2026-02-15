@@ -17,6 +17,7 @@ from .models import (
     PaperStatus,
     Quotation,
     Reference,
+    ReferenceType,
     ReflexionEntry,
     ResearchPlan,
     TopicProposal,
@@ -55,6 +56,13 @@ class Database:
             self.conn.execute("SELECT external_ids FROM papers LIMIT 1")
         except sqlite3.OperationalError:
             self.conn.execute("ALTER TABLE papers ADD COLUMN external_ids TEXT DEFAULT '{}'")
+        # Migration: add ref_type column to references_ if missing
+        try:
+            self.conn.execute("SELECT ref_type FROM references_ LIMIT 1")
+        except sqlite3.OperationalError:
+            self.conn.execute(
+                "ALTER TABLE references_ ADD COLUMN ref_type TEXT NOT NULL DEFAULT 'unclassified'"
+            )
         self.conn.commit()
 
     def close(self) -> None:
@@ -216,9 +224,9 @@ class Database:
         self.conn.execute(
             """INSERT OR IGNORE INTO references_
             (id, paper_id, title, authors, year, journal, volume, issue, pages,
-             doi, publisher, verified, verification_source,
+             doi, publisher, ref_type, verified, verification_source,
              formatted_mla, formatted_chicago, formatted_gb)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 ref_id,
                 ref.paper_id,
@@ -231,6 +239,7 @@ class Database:
                 ref.pages,
                 ref.doi,
                 ref.publisher,
+                ref.ref_type.value,
                 ref.verified,
                 ref.verification_source,
                 ref.formatted_mla,
@@ -265,6 +274,24 @@ class Database:
             (source, mla, chicago, gb, ref_id),
         )
         self.conn.commit()
+
+    def update_reference_type(self, ref_id: str, ref_type: ReferenceType) -> None:
+        """Update the ref_type classification for a reference."""
+        self.conn.execute(
+            "UPDATE references_ SET ref_type = ? WHERE id = ?",
+            (ref_type.value, ref_id),
+        )
+        self.conn.commit()
+
+    def get_references_by_type(
+        self, ref_type: ReferenceType, limit: int = 100
+    ) -> list[Reference]:
+        """Return references matching a given type."""
+        rows = self.conn.execute(
+            "SELECT * FROM references_ WHERE ref_type = ? LIMIT ?",
+            (ref_type.value, limit),
+        ).fetchall()
+        return [_row_to_reference(r) for r in rows]
 
     # --- Quotations ---
 
@@ -521,6 +548,7 @@ def _row_to_paper(row: sqlite3.Row) -> Paper:
 
 
 def _row_to_reference(row: sqlite3.Row) -> Reference:
+    ref_type_val = row["ref_type"] if "ref_type" in row.keys() else "unclassified"
     return Reference(
         id=row["id"],
         paper_id=row["paper_id"],
@@ -533,6 +561,7 @@ def _row_to_reference(row: sqlite3.Row) -> Reference:
         pages=row["pages"],
         doi=row["doi"],
         publisher=row["publisher"],
+        ref_type=ReferenceType(ref_type_val),
         verified=bool(row["verified"]),
         verification_source=row["verification_source"],
         formatted_mla=row["formatted_mla"],
@@ -613,6 +642,7 @@ CREATE TABLE IF NOT EXISTS references_ (
     pages TEXT,
     doi TEXT,
     publisher TEXT,
+    ref_type TEXT NOT NULL DEFAULT 'unclassified',
     verified INTEGER NOT NULL DEFAULT 0,
     verification_source TEXT,
     formatted_mla TEXT,
