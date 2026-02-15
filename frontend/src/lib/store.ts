@@ -114,7 +114,7 @@ export const usePipelineStore = create<PipelineState>()(
         if (stage === 'journal') return true;
         if (stage === 'discover') return !!selectedJournal;
         if (stage === 'references') return completedStages.includes('discover');
-        if (stage === 'plan') return completedStages.includes('discover');
+        if (stage === 'plan') return completedStages.includes('discover') || completedStages.includes('references');
         if (stage === 'write') return completedStages.includes('plan');
         if (stage === 'review') return completedStages.includes('write');
         if (stage === 'revision') return completedStages.includes('review');

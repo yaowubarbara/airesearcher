@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 
 from src.knowledge_base.db import Database
 from src.knowledge_base.models import PaperStatus
@@ -34,12 +34,17 @@ class AcquisitionReport:
     papers_with_pdf_url: int = 0
     oa_resolved: int = 0
     proxy_downloaded: int = 0
+    local_hits: int = 0
     paper_ids: list[str] = field(default_factory=list)
+    top_paper_ids: list[str] = field(default_factory=list)
+    expanded_queries: list[str] = field(default_factory=list)
 
     def summary(self) -> str:
         return (
             f"Reference Acquisition: query='{self.query}'\n"
-            f"  Found: {self.found} | With PDF URL: {self.papers_with_pdf_url}\n"
+            f"  Expanded queries: {len(self.expanded_queries)}\n"
+            f"  Found: {self.found} | With PDF URL: {self.papers_with_pdf_url}"
+            f" | Local KB hits: {self.local_hits}\n"
             f"  Downloaded: {self.downloaded} | OA resolved: {self.oa_resolved}"
             f" | Proxy: {self.proxy_downloaded}\n"
             f"  Failed: {self.failed_download}\n"
@@ -57,9 +62,11 @@ class ReferenceAcquisitionPipeline:
         vector_store: VectorStore,
         download_dir: Optional[str] = None,
         proxy: Optional[InstitutionalProxy] = None,
+        llm_router: Optional[Any] = None,
     ):
         self.db = db
         self.vs = vector_store
+        self.llm_router = llm_router
         self.searcher = ReferenceSearcher(db=db)
         self.web_searcher = WebSearcher()
         # Auto-load proxy if not explicitly provided
@@ -79,6 +86,8 @@ class ReferenceAcquisitionPipeline:
         self,
         topic: str,
         max_results: int = 50,
+        progress_callback: Optional[Any] = None,
+        index_metadata_only: bool = False,
     ) -> AcquisitionReport:
         """Search for papers, download PDFs, and index into knowledge base.
 
@@ -91,19 +100,42 @@ class ReferenceAcquisitionPipeline:
         """
         report = AcquisitionReport(query=topic)
 
-        # Step 1: Search
-        papers = await self.searcher.search_topic(
-            topic, max_results_per_source=max_results
-        )
-        report.found = len(papers)
-        report.papers_with_pdf_url = sum(1 for p in papers if p.pdf_url)
+        async def _progress(frac: float, msg: str) -> None:
+            if progress_callback:
+                await progress_callback(frac, msg)
 
-        if not papers:
+        # Step 1: Search — use LLM-expanded multi-language queries if router available
+        if self.llm_router:
+            all_papers, top_papers = await self.searcher.search_topic_expanded(
+                topic,
+                llm_router=self.llm_router,
+                max_results_per_source=max_results,
+                progress_callback=_progress,
+            )
+        else:
+            await _progress(0.1, "Searching (no LLM expansion)...")
+            all_papers = await self.searcher.search_topic(
+                topic, max_results_per_source=max_results
+            )
+            top_papers = all_papers  # no filtering without LLM
+
+        # Step 1.5: Also search locally indexed papers in ChromaDB
+        await _progress(0.60, "Searching local knowledge base...")
+        local_hits = await self.searcher.search_local(topic, self.vs, n_results=20)
+        local_paper_ids = {h["paper_id"] for h in local_hits}
+        report.local_hits = len(local_paper_ids)
+
+        report.found = len(all_papers)
+        report.papers_with_pdf_url = sum(1 for p in all_papers if p.pdf_url)
+
+        if not all_papers:
             logger.info("No papers found for topic: %s", topic)
             return report
 
-        # Step 2: Insert papers into DB
-        for paper in papers:
+        await _progress(0.62, f"Saving {len(all_papers)} papers to DB...")
+
+        # Step 2a: Insert ALL papers into DB (metadata is cheap)
+        for paper in all_papers:
             try:
                 paper_id = self.db.insert_paper(paper)
                 paper.id = paper_id
@@ -111,10 +143,33 @@ class ReferenceAcquisitionPipeline:
             except Exception:
                 logger.debug("Failed to insert paper: %s", paper.title[:60], exc_info=True)
 
+        # Step 2b: Only proceed with top papers for download/indexing
+        # (Remaining papers are in SQLite for ReferenceSelector to use)
+        report.top_paper_ids = [p.id for p in top_papers if p.id]
+        papers = top_papers
+        if len(all_papers) > len(papers):
+            logger.info(
+                "All %d papers stored in DB; top %d selected for download/indexing",
+                len(all_papers), len(papers),
+            )
+        await _progress(0.65, f"Downloading top {len(papers)} papers...")
+
+        # ---- Phase allocation (real progress based on paper count) ----
+        # Search+local:  0-65%  (handled above)
+        # PDF download:  65-75% (papers with direct URL)
+        # OA resolution: 75-90% (heaviest — per-paper API calls)
+        # Proxy:         90-95%
+        # Metadata idx:  95-99%
+        total = len(papers) or 1  # avoid division by zero
+
         # Step 3: Download PDFs for papers that have pdf_url
         papers_with_url = [p for p in papers if p.pdf_url]
         downloaded_ids: set[str] = set()
-        for paper in papers_with_url:
+        for i, paper in enumerate(papers_with_url):
+            await _progress(
+                0.65 + 0.10 * (i / max(len(papers_with_url), 1)),
+                f"Downloading PDF {i+1}/{len(papers_with_url)}: {paper.title[:40]}..."
+            )
             pdf_path = await self.downloader.download_pdf(paper)
             if pdf_path:
                 report.downloaded += 1
@@ -147,7 +202,11 @@ class ReferenceAcquisitionPipeline:
             p for p in papers
             if (p.id or "") not in downloaded_ids
         ]
-        for paper in papers_needing_oa:
+        for i, paper in enumerate(papers_needing_oa):
+            await _progress(
+                0.75 + 0.15 * (i / max(len(papers_needing_oa), 1)),
+                f"OA resolving {i+1}/{len(papers_needing_oa)}: {paper.title[:40]}..."
+            )
             try:
                 resolved_url = await self.oa_resolver.resolve_pdf_url(paper)
                 if resolved_url:
@@ -190,7 +249,11 @@ class ReferenceAcquisitionPipeline:
                 p for p in papers
                 if (p.id or "") not in downloaded_ids and p.doi
             ]
-            for paper in papers_needing_proxy:
+            for i, paper in enumerate(papers_needing_proxy):
+                await _progress(
+                    0.90 + 0.05 * (i / max(len(papers_needing_proxy), 1)),
+                    f"Proxy download {i+1}/{len(papers_needing_proxy)}: {paper.title[:40]}..."
+                )
                 try:
                     pdf_path = await self.downloader.download_via_proxy(paper)
                     if pdf_path:
@@ -224,21 +287,33 @@ class ReferenceAcquisitionPipeline:
                     )
 
         # Step 5: Index metadata-only papers (no PDF available)
-        papers_without_pdf = [
-            p for p in papers
-            if (p.id or "") not in downloaded_ids
-        ]
-        for paper in papers_without_pdf:
-            try:
-                self.indexer.index_from_metadata(paper)
-                report.indexed += 1
-            except Exception:
-                logger.debug(
-                    "Failed to index metadata for %s",
-                    paper.title[:60],
-                    exc_info=True,
-                )
-                report.failed_index += 1
+        # Skip by default — embedding each paper's metadata is slow and
+        # rate-limited; the metadata is already in SQLite for keyword lookup.
+        if index_metadata_only:
+            papers_without_pdf = [
+                p for p in papers
+                if (p.id or "") not in downloaded_ids
+            ]
+            for i, paper in enumerate(papers_without_pdf):
+                if i % 10 == 0:
+                    await _progress(
+                        0.95 + 0.04 * (i / max(len(papers_without_pdf), 1)),
+                        f"Indexing metadata {i+1}/{len(papers_without_pdf)}..."
+                    )
+                try:
+                    self.indexer.index_from_metadata(paper)
+                    report.indexed += 1
+                except Exception:
+                    logger.debug(
+                        "Failed to index metadata for %s",
+                        paper.title[:60],
+                        exc_info=True,
+                    )
+                    report.failed_index += 1
+        else:
+            skipped = len([p for p in papers if (p.id or "") not in downloaded_ids])
+            if skipped:
+                logger.info("Skipped metadata-only indexing for %d papers (no PDF)", skipped)
 
         logger.info(report.summary())
         return report

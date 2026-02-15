@@ -95,7 +95,15 @@ class LLMRouter:
                 **merged_kwargs,
             )
         except Exception as e:
-            if fallback:
+            if fallback and fallback != primary:
+                # Fallback may use a different provider — resolve its kwargs
+                fallback_provider = route.get("fallback_provider")
+                if not fallback_provider:
+                    fallback_provider = self.config.get("defaults", {}).get("fallback_provider")
+                if fallback_provider and fallback_provider != provider_name:
+                    fallback_kwargs = {**self._get_provider_config(fallback_provider), **kwargs}
+                else:
+                    fallback_kwargs = merged_kwargs
                 # Try fallback model
                 return self._call_model(
                     model=fallback,
@@ -103,7 +111,7 @@ class LLMRouter:
                     messages=messages,
                     temperature=temp,
                     max_tokens=max_tok,
-                    **merged_kwargs,
+                    **fallback_kwargs,
                 )
             raise e
 

@@ -43,7 +43,14 @@ export const api = {
     return res.json();
   },
   getWishlist: () =>
-    request<{ count: number; papers: import('./types').WishlistPaper[] }>('/references/wishlist'),
+    request<import('./types').WishlistResponse>('/references/wishlist'),
+  getDownloaded: () =>
+    request<{ count: number; papers: import('./types').DownloadedPaper[] }>('/references/downloaded'),
+  browserDownload: (sessionId?: string, limit = 20) =>
+    request<{ task_id: string }>('/references/browser-download', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: sessionId, limit }),
+    }),
 
   // Plan
   createPlan: (topicId: string, journal: string, language = 'en') =>

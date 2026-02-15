@@ -63,6 +63,32 @@ class Database:
             self.conn.execute(
                 "ALTER TABLE references_ ADD COLUMN ref_type TEXT NOT NULL DEFAULT 'unclassified'"
             )
+        # Migration: create search_sessions tables if missing
+        self.conn.executescript("""
+            CREATE TABLE IF NOT EXISTS search_sessions (
+                id TEXT PRIMARY KEY,
+                query TEXT NOT NULL,
+                found INTEGER DEFAULT 0,
+                downloaded INTEGER DEFAULT 0,
+                indexed INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS search_session_papers (
+                session_id TEXT NOT NULL,
+                paper_id TEXT NOT NULL,
+                recommended INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (session_id, paper_id),
+                FOREIGN KEY (session_id) REFERENCES search_sessions(id),
+                FOREIGN KEY (paper_id) REFERENCES papers(id)
+            );
+        """)
+        # Migration: add recommended column if missing
+        try:
+            self.conn.execute("SELECT recommended FROM search_session_papers LIMIT 1")
+        except sqlite3.OperationalError:
+            self.conn.execute(
+                "ALTER TABLE search_session_papers ADD COLUMN recommended INTEGER NOT NULL DEFAULT 0"
+            )
         self.conn.commit()
 
     def close(self) -> None:
@@ -525,6 +551,77 @@ class Database:
         ).fetchall()
         return {f"{r['model']}:{r['task_type']}": dict(r) for r in rows}
 
+    # --- Search Sessions ---
+
+    def insert_search_session(
+        self,
+        session_id: str,
+        query: str,
+        paper_ids: list[str],
+        found: int = 0,
+        downloaded: int = 0,
+        indexed: int = 0,
+        created_at: Optional[str] = None,
+        top_paper_ids: Optional[list[str]] = None,
+    ) -> str:
+        """Persist a search session and link papers to it.
+
+        Args:
+            top_paper_ids: IDs of papers recommended by LLM filtering.
+                           If None, all papers are marked as recommended.
+        """
+        now = created_at or datetime.utcnow().isoformat()
+        top_set = set(top_paper_ids) if top_paper_ids is not None else set(paper_ids)
+        self.conn.execute(
+            """INSERT OR REPLACE INTO search_sessions
+            (id, query, found, downloaded, indexed, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)""",
+            (session_id, query, found, downloaded, indexed, now),
+        )
+        for pid in paper_ids:
+            self.conn.execute(
+                "INSERT OR IGNORE INTO search_session_papers (session_id, paper_id, recommended) VALUES (?, ?, ?)",
+                (session_id, pid, 1 if pid in top_set else 0),
+            )
+        self.conn.commit()
+        return session_id
+
+    def get_search_sessions(self) -> list[dict]:
+        """Return all search sessions, newest first.
+
+        Each session includes paper_ids and recommended_ids (LLM-filtered subset).
+        """
+        rows = self.conn.execute(
+            "SELECT * FROM search_sessions ORDER BY created_at DESC"
+        ).fetchall()
+        sessions = []
+        for r in rows:
+            links = self.conn.execute(
+                "SELECT paper_id, recommended FROM search_session_papers WHERE session_id = ?",
+                (r["id"],),
+            ).fetchall()
+            paper_ids = [row[0] for row in links]
+            recommended_ids = [row[0] for row in links if row[1]]
+            sessions.append({
+                "id": r["id"],
+                "query": r["query"],
+                "found": r["found"],
+                "downloaded": r["downloaded"],
+                "indexed": r["indexed"],
+                "paper_ids": paper_ids,
+                "recommended_ids": recommended_ids,
+                "created_at": r["created_at"],
+            })
+        return sessions
+
+    def get_session_paper_ids(self, session_id: str) -> list[str]:
+        """Return paper IDs linked to a session."""
+        rows = self.conn.execute(
+            "SELECT paper_id FROM search_session_papers WHERE session_id = ?",
+            (session_id,),
+        ).fetchall()
+        return [r[0] for r in rows]
+
 
 # --- Row converters ---
 
@@ -744,5 +841,23 @@ CREATE TABLE IF NOT EXISTS llm_usage (
     latency_ms INTEGER DEFAULT 0,
     success INTEGER DEFAULT 1,
     created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS search_sessions (
+    id TEXT PRIMARY KEY,
+    query TEXT NOT NULL,
+    found INTEGER DEFAULT 0,
+    downloaded INTEGER DEFAULT 0,
+    indexed INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS search_session_papers (
+    session_id TEXT NOT NULL,
+    paper_id TEXT NOT NULL,
+    recommended INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (session_id, paper_id),
+    FOREIGN KEY (session_id) REFERENCES search_sessions(id),
+    FOREIGN KEY (paper_id) REFERENCES papers(id)
 );
 """

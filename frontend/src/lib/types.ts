@@ -83,6 +83,17 @@ export interface ReviewResult {
   overall_recommendation: string;
 }
 
+export interface DownloadedPaper {
+  id: string;
+  title: string;
+  authors: string[];
+  year: number;
+  doi?: string;
+  journal: string;
+  status: string;
+  pdf_path?: string;
+}
+
 export interface WishlistPaper {
   id: string;
   title: string;
@@ -90,6 +101,23 @@ export interface WishlistPaper {
   year: number;
   doi?: string;
   journal: string;
+  recommended?: boolean;
+}
+
+export interface WishlistGroup {
+  id: string;
+  query: string;
+  timestamp: number;
+  total_found: number;
+  downloaded: number;
+  needing_pdf: number;
+  recommended_count?: number;
+  papers: WishlistPaper[];
+}
+
+export interface WishlistResponse {
+  total_count: number;
+  groups: WishlistGroup[];
 }
 
 export interface TaskProgress {

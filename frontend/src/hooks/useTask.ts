@@ -4,6 +4,23 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/lib/api';
 import type { TaskProgress } from '@/lib/types';
 
+function startPolling(
+  taskId: string,
+  setTask: (t: TaskProgress) => void,
+  cancelled: () => boolean,
+): NodeJS.Timeout {
+  return setInterval(async () => {
+    if (cancelled()) return;
+    try {
+      const data = await api.getTaskStatus(taskId);
+      setTask(data);
+      if (data.status === 'completed' || data.status === 'failed') {
+        // Caller will clean up via the returned interval ID
+      }
+    } catch {}
+  }, 1500);
+}
+
 export function useTask(taskId: string | null) {
   const [task, setTask] = useState<TaskProgress | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -27,59 +44,60 @@ export function useTask(taskId: string | null) {
     }
 
     let cancelled = false;
+    const isCancelled = () => cancelled;
 
-    // Try WebSocket first
-    const wsUrl = `ws://${window.location.hostname}:8001/api/ws/tasks/${taskId}`;
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
+    const fallbackToPolling = () => {
+      if (cancelled || pollRef.current) return;
+      pollRef.current = startPolling(taskId, (data) => {
+        setTask(data);
+        if (data.status === 'completed' || data.status === 'failed') {
+          if (pollRef.current) clearInterval(pollRef.current);
+        }
+      }, isCancelled);
+    };
 
-    ws.onmessage = (event) => {
-      if (cancelled) return;
+    // Only attempt WebSocket on same-origin (localhost dev).
+    // Through tunnels/HTTPS proxies, go straight to polling.
+    const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    const isLocalhost = typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+    if (!isSecure && isLocalhost) {
       try {
-        const data = JSON.parse(event.data);
-        setTask({
-          taskId: data.taskId || taskId,
-          status: data.status,
-          progress: data.progress,
-          message: data.message || '',
-          result: data.result,
-          error: data.error,
-        });
-      } catch {}
-    };
+        const wsUrl = `ws://${window.location.hostname}:8001/api/ws/tasks/${taskId}`;
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
 
-    ws.onerror = () => {
-      // Fallback to polling
-      ws.close();
-      if (cancelled) return;
-      pollRef.current = setInterval(async () => {
-        if (cancelled) return;
-        try {
-          const data = await api.getTaskStatus(taskId);
-          setTask(data);
-          if (data.status === 'completed' || data.status === 'failed') {
-            if (pollRef.current) clearInterval(pollRef.current);
-          }
-        } catch {}
-      }, 1000);
-    };
-
-    ws.onclose = () => {
-      // If task isn't done yet, switch to polling
-      if (cancelled) return;
-      if (task?.status !== 'completed' && task?.status !== 'failed') {
-        pollRef.current = setInterval(async () => {
+        ws.onmessage = (event) => {
           if (cancelled) return;
           try {
-            const data = await api.getTaskStatus(taskId);
-            setTask(data);
-            if (data.status === 'completed' || data.status === 'failed') {
-              if (pollRef.current) clearInterval(pollRef.current);
-            }
+            const data = JSON.parse(event.data);
+            setTask({
+              taskId: data.taskId || taskId,
+              status: data.status,
+              progress: data.progress,
+              message: data.message || '',
+              result: data.result,
+              error: data.error,
+            });
           } catch {}
-        }, 1000);
+        };
+
+        ws.onerror = () => {
+          ws.close();
+          fallbackToPolling();
+        };
+
+        ws.onclose = () => {
+          fallbackToPolling();
+        };
+      } catch {
+        fallbackToPolling();
       }
-    };
+    } else {
+      // HTTPS or tunnel — use polling directly
+      fallbackToPolling();
+    }
 
     return () => {
       cancelled = true;
