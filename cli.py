@@ -164,6 +164,54 @@ def discover(limit: int) -> None:
     asyncio.run(_run())
 
 
+# --- Primary text report helper ---
+
+
+def _display_primary_text_report(report) -> None:
+    """Display a PrimaryTextReport as a Rich table."""
+    from src.knowledge_base.models import PrimaryTextReport
+
+    if report.all_available:
+        console.print(
+            f"\n[green]All {report.total_unique} primary texts are indexed.[/green]"
+        )
+        return
+
+    n_missing = len(report.missing)
+    console.print(
+        f"\n[bold yellow]WARNING: {report.summary()}[/bold yellow]"
+    )
+
+    table = Table(show_lines=True)
+    table.add_column("#", width=4)
+    table.add_column("Missing Work", max_width=40)
+    table.add_column("Needed By", max_width=25)
+    table.add_column("Passages Needed", max_width=40)
+
+    for i, m in enumerate(report.missing):
+        sections_str = ", ".join(m.sections_needing[:3])
+        if len(m.sections_needing) > 3:
+            sections_str += f" +{len(m.sections_needing) - 3}"
+        passages_str = "; ".join(m.passages_needed[:2])
+        if len(m.passages_needed) > 2:
+            passages_str += f" +{len(m.passages_needed) - 2}"
+        table.add_row(
+            str(i + 1),
+            m.text_name[:40],
+            sections_str[:25],
+            passages_str[:40] if passages_str else "-",
+        )
+
+    console.print(table)
+
+    console.print(
+        "\n[bold]To provide these texts:[/bold]\n"
+        "  1. Obtain PDFs/ebooks for the works above\n"
+        "  2. Put them in [cyan]data/papers/[/cyan]\n"
+        "  3. Run: [cyan]ai-researcher index-folder data/papers/[/cyan]"
+    )
+
+
 # --- Plan ---
 
 
@@ -201,6 +249,13 @@ def plan(topic_id: str, journal: str, language: str) -> None:
             for i, section in enumerate(result.outline):
                 console.print(f"  {i+1}. {section.title} (~{section.estimated_words} words)")
                 console.print(f"     Argument: {section.argument[:100]}...")
+
+            # Detect missing primary texts
+            from src.research_planner.planner import detect_missing_primary_texts
+
+            report = detect_missing_primary_texts(result, db, vs)
+            if report.total_unique > 0:
+                _display_primary_text_report(report)
         finally:
             db.close()
 
@@ -552,15 +607,19 @@ def search_references(topic: str, max_results: int, wishlist: str) -> None:
                 wl_table.add_column("Authors", max_width=25)
                 wl_table.add_column("Year", width=5)
                 wl_table.add_column("DOI", max_width=30)
+                wl_table.add_column("Google Scholar", max_width=60)
 
                 wishlist_data = []
                 for i, p in enumerate(needing):
+                    from urllib.parse import quote_plus
+                    scholar_url = f"https://scholar.google.com/scholar?q={quote_plus(p.title)}"
                     wl_table.add_row(
                         str(i + 1),
                         p.title[:50],
                         ", ".join(p.authors[:2]) if p.authors else "-",
                         str(p.year),
                         p.doi or "-",
+                        scholar_url,
                     )
                     wishlist_data.append({
                         "id": p.id,
@@ -571,6 +630,7 @@ def search_references(topic: str, max_results: int, wishlist: str) -> None:
                         "journal": p.journal,
                         "url": p.url,
                         "pdf_url": p.pdf_url,
+                        "scholar_url": scholar_url,
                     })
                 console.print(wl_table)
 
@@ -648,7 +708,35 @@ def wishlist() -> None:
     then run: ai-researcher index-folder data/papers/
     """
     db = get_db()
+    vs = get_vs()
     try:
+        # Corpus principal section: check most recent plan
+        try:
+            row = db.conn.execute(
+                "SELECT * FROM research_plans ORDER BY created_at DESC LIMIT 1"
+            ).fetchone()
+            if row:
+                import json as _json
+                from src.knowledge_base.models import OutlineSection, ResearchPlan, Language
+                from src.research_planner.planner import detect_missing_primary_texts
+
+                plan_obj = ResearchPlan(
+                    id=row["id"],
+                    topic_id=row["topic_id"],
+                    thesis_statement=row["thesis_statement"],
+                    target_journal=row["target_journal"],
+                    target_language=Language(row["target_language"]),
+                    outline=[OutlineSection(**s) for s in _json.loads(row["outline"])],
+                    reference_ids=_json.loads(row["reference_ids"]),
+                )
+                report = detect_missing_primary_texts(plan_obj, db, vs)
+                if report.total_unique > 0:
+                    console.print(Panel("[bold]Corpus Principal (Primary Texts)[/bold]"))
+                    _display_primary_text_report(report)
+                    console.print()
+        except Exception:
+            pass  # Non-critical; continue to regular wishlist
+
         needing = db.get_papers_needing_pdf(limit=500)
         if not needing:
             console.print("[green]All papers have PDFs or are indexed![/green]")
@@ -661,26 +749,31 @@ def wishlist() -> None:
         table.add_column("Title", max_width=50)
         table.add_column("Authors", max_width=25)
         table.add_column("Year", width=5)
-        table.add_column("DOI / URL")
+        table.add_column("DOI / URL", max_width=40)
+        table.add_column("Google Scholar", max_width=60)
 
+        from urllib.parse import quote_plus
         for i, p in enumerate(needing):
             doi_or_url = p.doi or p.url or "-"
             if p.doi:
                 doi_or_url = f"https://doi.org/{p.doi}"
+            scholar_url = f"https://scholar.google.com/scholar?q={quote_plus(p.title)}"
             table.add_row(
                 str(i + 1),
                 p.title[:50],
                 ", ".join(p.authors[:2]) if p.authors else "-",
                 str(p.year),
                 doi_or_url[:50],
+                scholar_url,
             )
         console.print(table)
 
         console.print(
             "\n[bold]How to provide PDFs:[/bold]\n"
-            "  1. Download from your university library, Sci-Hub, or publisher\n"
-            "  2. Put PDF files into [cyan]data/papers/[/cyan]\n"
-            "  3. Run [cyan]ai-researcher index-folder data/papers/[/cyan]\n"
+            "  1. Click the Google Scholar link to find the paper\n"
+            "  2. Download from your university library, Sci-Hub, or publisher\n"
+            "  3. Put PDF files into [cyan]data/papers/[/cyan]\n"
+            "  4. Run [cyan]ai-researcher index-folder data/papers/[/cyan]\n"
             "\n  The system will match filenames containing DOIs to the right papers.\n"
             "  Or index individually: [cyan]ai-researcher index path/to/paper.pdf --paper-id <ID>[/cyan]"
         )
