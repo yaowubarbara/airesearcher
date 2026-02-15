@@ -18,7 +18,13 @@ Write the conclusion for an academic paper in comparative literature.
 
 4. **Future directions**: Briefly gesture toward questions opened by this research (without undermining the paper's contributions).
 
-5. **Closing**: End with a strong final thought—potentially returning to the opening gesture or a key textual moment.
+5. **Closing**: End with a strong final thought -- potentially returning to the opening gesture or a key textual moment from the primary texts.
+
+## Citation Strategy for Conclusions
+- Citation density should be minimal to none (0-2 per page). The conclusion is the author's own synthesis; it should stand on its own authority.
+- If citing at all, prefer echoing a key phrase from a primary text analyzed earlier (short quotation callback) rather than introducing new secondary sources.
+- Do NOT introduce new scholars, new theoretical frameworks, or new evidence in the conclusion.
+- A brief return to a primary text passage quoted earlier in the paper is effective and appropriate.
 
 ## Length
 600-1000 words
