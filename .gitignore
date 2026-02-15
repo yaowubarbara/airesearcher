@@ -9,7 +9,12 @@ build/
 data/ai_researcher.db
 data/chroma/
 data/papers/*.pdf
+data/papers/*.doc
 data/wishlist.json
+data/db/
+data/demo_output/
+data/citation_analysis/
+data/style_samples/
 
 .pytest_cache/
 .mypy_cache/
@@ -19,3 +24,8 @@ data/wishlist.json
 .env
 .venv/
 venv/
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
