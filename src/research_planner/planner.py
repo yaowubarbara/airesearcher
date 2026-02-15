@@ -3,18 +3,29 @@
 from __future__ import annotations
 
 import json
+import logging
+import re
 from pathlib import Path
 from typing import Optional
 
 import yaml
 
 from src.knowledge_base.db import Database
-from src.knowledge_base.models import Language, ResearchPlan, TopicProposal
+from src.knowledge_base.models import (
+    Language,
+    MissingPrimaryText,
+    PaperStatus,
+    PrimaryTextReport,
+    ResearchPlan,
+    TopicProposal,
+)
 from src.knowledge_base.vector_store import VectorStore
 from src.llm.router import LLMRouter
 
 from .outline_generator import OutlineGenerator
 from .reference_selector import ReferenceSelector
+
+logger = logging.getLogger(__name__)
 
 
 class ResearchPlanner:
@@ -220,3 +231,144 @@ Respond with JSON: {{"thesis": "...", "outline": [...]}}"""
             pass
 
         return plan_data
+
+
+def _extract_title(text: str) -> str:
+    """Extract the work title from a primary_texts entry.
+
+    Patterns handled:
+      "Paul Celan, Atemwende"                     -> "Atemwende"
+      "Glissant, Poétique de la Relation (1990)"   -> "Poétique de la Relation"
+      "Celan, 'Psalm' (Die Niemandsrose, 1963)"    -> "Psalm"
+      "Celan, \"Todesfuge\""                        -> "Todesfuge"
+      "Atemwende"                                   -> "Atemwende"
+      "Can Xue, 黄泥街"                             -> "黄泥街"
+    """
+    text = text.strip()
+    if not text:
+        return text
+
+    # Split on first comma to separate author from title
+    if "," in text:
+        _, _, after_comma = text.partition(",")
+        title_part = after_comma.strip()
+    else:
+        title_part = text
+
+    # Strip surrounding quotes (single or double) or italic markers (*)
+    quote_chars = "''\u2018\u2019\"\"*\u201c\u201d"
+    title_part = title_part.strip(quote_chars).strip()
+
+    # Remove trailing parenthetical (year or collection info)
+    # e.g. "(1990)" or "(Die Niemandsrose, 1963)"
+    title_part = re.sub(r"\s*\([^)]*\)\s*$", "", title_part).strip()
+
+    # Strip quotes again (they may surround the inner title before a parenthetical)
+    title_part = title_part.strip(quote_chars).strip()
+
+    return title_part
+
+
+def _jaccard_word_overlap(a: str, b: str) -> float:
+    """Compute Jaccard similarity over lowercased word sets."""
+    words_a = set(a.lower().split())
+    words_b = set(b.lower().split())
+    if not words_a or not words_b:
+        return 0.0
+    return len(words_a & words_b) / len(words_a | words_b)
+
+
+def detect_missing_primary_texts(
+    plan: ResearchPlan,
+    db: Database,
+    vector_store: VectorStore,
+) -> PrimaryTextReport:
+    """Detect which primary literary texts in an outline are not indexed.
+
+    For each unique primary_texts entry across all outline sections:
+      Tier 1: SQLite LIKE search by extracted title
+      Tier 2: ChromaDB semantic search (if Tier 1 finds nothing indexed)
+
+    Returns a PrimaryTextReport with available/missing lists.
+    """
+    # Collect unique primary texts and which sections need them
+    text_sections: dict[str, list[str]] = {}  # text_name -> [section titles]
+    text_passages: dict[str, list[str]] = {}  # text_name -> [passages]
+    text_purposes: dict[str, str] = {}  # text_name -> purpose
+
+    for section in plan.outline:
+        for pt in section.primary_texts:
+            pt_stripped = pt.strip()
+            if not pt_stripped:
+                continue
+            text_sections.setdefault(pt_stripped, [])
+            if section.title not in text_sections[pt_stripped]:
+                text_sections[pt_stripped].append(section.title)
+
+            text_passages.setdefault(pt_stripped, [])
+            for passage in section.passages_to_analyze:
+                if passage not in text_passages[pt_stripped]:
+                    text_passages[pt_stripped].append(passage)
+
+            if pt_stripped not in text_purposes:
+                text_purposes[pt_stripped] = section.argument[:200] if section.argument else ""
+
+    if not text_sections:
+        return PrimaryTextReport(total_unique=0)
+
+    available: list[str] = []
+    missing: list[MissingPrimaryText] = []
+
+    for text_name in text_sections:
+        title = _extract_title(text_name)
+        found = False
+
+        # Tier 1: SQLite LIKE search
+        if title:
+            papers = db.search_papers_by_title(title, limit=5)
+            for p in papers:
+                if p.status in (PaperStatus.INDEXED, PaperStatus.ANALYZED):
+                    found = True
+                    break
+
+        # Tier 2: ChromaDB semantic search
+        if not found and title:
+            try:
+                from src.literature_indexer.embeddings import get_embedding
+
+                embedding = get_embedding(title)
+                results = vector_store.search_papers(embedding, n_results=3)
+                if results and results.get("metadatas") and results["metadatas"][0]:
+                    for i, meta in enumerate(results["metadatas"][0]):
+                        paper_id = meta.get("paper_id", "")
+                        if paper_id:
+                            paper = db.get_paper(paper_id)
+                            if paper and paper.status in (PaperStatus.INDEXED, PaperStatus.ANALYZED):
+                                paper_title = paper.title or ""
+                                if _jaccard_word_overlap(title, paper_title) > 0.5:
+                                    found = True
+                                    break
+                        # Also check document text overlap as fallback
+                        if results.get("documents") and results["documents"][0]:
+                            doc = results["documents"][0][i]
+                            if _jaccard_word_overlap(title, doc[:200]) > 0.5:
+                                found = True
+                                break
+            except Exception:
+                logger.debug("ChromaDB search failed for '%s', skipping Tier 2", title)
+
+        if found:
+            available.append(text_name)
+        else:
+            missing.append(MissingPrimaryText(
+                text_name=text_name,
+                sections_needing=text_sections[text_name],
+                passages_needed=text_passages[text_name],
+                purpose=text_purposes.get(text_name, ""),
+            ))
+
+    return PrimaryTextReport(
+        total_unique=len(text_sections),
+        available=available,
+        missing=missing,
+    )

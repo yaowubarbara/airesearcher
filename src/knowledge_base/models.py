@@ -139,6 +139,38 @@ class OutlineSection(BaseModel):
     estimated_words: int = 0
 
 
+class MissingPrimaryText(BaseModel):
+    """A primary literary text required by the outline but not indexed."""
+
+    text_name: str  # e.g. "Paul Celan, Atemwende"
+    sections_needing: list[str] = Field(default_factory=list)  # section titles that need it
+    passages_needed: list[str] = Field(default_factory=list)  # specific passages requested
+    purpose: str = ""  # from section argument, truncated
+
+
+class PrimaryTextReport(BaseModel):
+    """Report on primary text availability for a research plan."""
+
+    total_unique: int = 0
+    available: list[str] = Field(default_factory=list)
+    missing: list[MissingPrimaryText] = Field(default_factory=list)
+
+    @property
+    def all_available(self) -> bool:
+        return len(self.missing) == 0
+
+    def summary(self) -> str:
+        if self.total_unique == 0:
+            return "No primary texts listed in the outline."
+        if self.all_available:
+            return f"All {self.total_unique} primary texts are indexed."
+        n_missing = len(self.missing)
+        return (
+            f"{n_missing}/{self.total_unique} primary texts are NOT indexed "
+            f"in the knowledge base."
+        )
+
+
 class Manuscript(BaseModel):
     """A manuscript in progress or completed."""
 

@@ -1,8 +1,8 @@
 # AI Researcher - Project Memory
 
 ## Current Status
-- Phase: 11+ (Review-Guided Revision) — COMPLETE
-- Last completed: Review-guided automatic revision (revise_manuscript + orchestrator branching)
+- Phase: 12 (Corpus Principal Detection) — COMPLETE
+- Last completed: Primary text missing detection after plan creation
 - Currently working on: Nothing
 - Blockers: None
 
@@ -39,12 +39,13 @@
 - [x] **config/proxy.yaml** (institutional proxy config with 11 publisher domains)
 - [x] **config/citation_profiles/comparative_literature.yaml** (citation norms from 6-article analysis)
 - [x] **citation_verifier/** (parser, engine, annotator, pipeline — MLA citation parsing + CrossRef/OpenAlex verification + [VERIFY] tags)
-- [x] tests/ (13 test files, 358 unit tests total)
+- [x] tests/ (14 test files, 394 unit tests total)
 - [x] **tests/test_llm_pipeline.py** (5 LLM pipeline tests: discover, plan, write, review, full chain)
 - [x] **tests/test_citation_profile.py** (34 tests: profile loading, ReferenceType, DB, classification, balance)
 - [x] **tests/test_citation_phase10.py** (54 tests: Phase 10 citation features end-to-end)
 - [x] **tests/test_citation_manager.py** (83 tests: footnotes, block quotes, secondary citation, multilingual, verification, critic parsing)
 - [x] **tests/test_citation_verifier.py** (64 tests: parser, engine, annotator, report, pipeline)
+- [x] **tests/test_primary_text_detection.py** (36 tests: title extraction, Jaccard overlap, models, detection with mocked DB/VS, DB title search)
 
 ## Phase 6 — Reference Acquisition Pipeline (COMPLETE)
 - [x] Paper model + DB: added `pdf_url` field, migration, `update_paper_pdf()`, `get_papers_needing_pdf()`
@@ -199,6 +200,31 @@
   - **TestEngineMatches** (4): title match, author surname, no match, partial title
 - [x] All 364 unit tests pass, 0 failures, no regressions
 
+## Phase 12 — Corpus Principal Missing Detection (COMPLETE)
+- [x] `MissingPrimaryText` model in `models.py` — stores text_name, sections_needing, passages_needed, purpose
+- [x] `PrimaryTextReport` model in `models.py` — total_unique, available, missing lists, `all_available` property, `summary()` method
+- [x] `Database.search_papers_by_title(query, limit)` in `db.py` — case-insensitive `LIKE %query%` search
+- [x] `_extract_title(text)` in `planner.py` — parses "Author, Title (Year)" patterns, strips quotes/italics/parens
+- [x] `_jaccard_word_overlap(a, b)` in `planner.py` — word-level Jaccard similarity for fuzzy matching
+- [x] `detect_missing_primary_texts(plan, db, vector_store)` in `planner.py`:
+  - Collects unique `primary_texts` across outline sections with deduplication
+  - Tier 1: SQLite LIKE search by extracted title, checks INDEXED/ANALYZED status
+  - Tier 2: ChromaDB semantic search with Jaccard overlap validation (>0.5)
+  - Aggregates sections_needing and passages_needed per missing text
+- [x] CLI `plan` command — calls detection after plan creation, displays Rich table of missing works
+- [x] CLI `wishlist` command — loads most recent plan, shows "Corpus Principal" section at top
+- [x] `_display_primary_text_report()` helper in `cli.py` — Rich table with missing works, needed sections, passages, and next-step instructions
+- [x] `WorkflowState.primary_text_report` field in `orchestrator.py`
+- [x] `plan_node` in orchestrator — calls `detect_missing_primary_texts()` after plan creation, stores in state, logs warnings (non-blocking)
+- [x] `tests/test_primary_text_detection.py` — 36 tests:
+  - **TestExtractTitle** (12): author+title, year, quoted with collection, double-quoted, title-only, Chinese, asterisk italic, empty, whitespace, smart quotes, multiple commas
+  - **TestJaccardWordOverlap** (5): identical, no overlap, partial, empty, case-insensitive
+  - **TestPrimaryTextReport** (4): empty, all available, some missing, all missing
+  - **TestMissingPrimaryText** (2): basic fields, defaults
+  - **TestDetectMissingPrimaryTexts** (9): empty outline, no texts, all found via SQLite, missing not in DB, exists but not indexed, dedup across sections, mixed found/missing, purpose from argument, empty strings skipped
+  - **TestSearchPapersByTitle** (4): substring match, case-insensitive, no match, limit
+- [x] All 426 unit tests pass (36 new + 390 existing), 0 failures, no regressions
+
 ## Phase 9 — End-to-End LLM Pipeline Tests (COMPLETE)
 - [x] `pyproject.toml` — added `llm_pipeline` pytest marker
 - [x] `tests/test_llm_pipeline.py` — 5 test functions exercising real LLM calls:
@@ -243,7 +269,8 @@
 - `tests/test_citation_phase10.py` — 54 tests (Phase 10 citation features: secondary citations, footnotes, block quotes, multilingual, type classification, profile loading)
 - `tests/test_citation_manager.py` — 83 tests (Phase 10.5: footnotes, block quotes, secondary citation, multilingual inline, extended format_citation, verify_all_citations, critic parsing, type grouping, bibliography formatting)
 - `tests/test_citation_verifier.py` — 64 tests (Phase 11: MLA parser, page range validation, annotation, report, engine verify, search methods, pipeline)
-- **Total: 372 unit tests + 5 LLM pipeline tests, all passing (LLM tests skip without ZHIPUAI_API_KEY)**
+- `tests/test_primary_text_detection.py` — 36 tests (Phase 12: title extraction, Jaccard overlap, models, detection with mocked DB/VS, DB title search)
+- **Total: 426 unit tests + 5 LLM pipeline tests, all passing (LLM tests skip without ZHIPUAI_API_KEY)**
 
 ## Key Decisions
 - LiteLLM as unified LLM gateway (see decisions.md #001)
@@ -263,9 +290,9 @@
 - `ai-researcher **resolve-oa** [--limit N] [--dry-run]` - Resolve OA URLs for papers missing PDFs
 - `ai-researcher **config-proxy**` - Configure institutional proxy (one-time setup)
 - `ai-researcher **proxy-download** [--limit N] [--dry-run]` - Download paywalled PDFs via proxy
-- `ai-researcher **wishlist**` - Show papers still needing PDFs
+- `ai-researcher **wishlist**` - Show papers still needing PDFs + corpus principal report
 - `ai-researcher discover` - Find research gaps
-- `ai-researcher plan <topic_id> --journal <name>` - Create research plan
+- `ai-researcher plan <topic_id> --journal <name>` - Create research plan + detect missing primary texts
 - `ai-researcher write <plan_id>` - Generate manuscript
 - `ai-researcher verify <ms_id>` - Verify references
 - `ai-researcher **verify-citations** <manuscript.md> [-o output] [-r report]` - Verify inline citations against CrossRef/OpenAlex + insert [VERIFY] tags

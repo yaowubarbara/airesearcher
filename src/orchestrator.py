@@ -78,6 +78,8 @@ class WorkflowState:
     submission_ready: bool = False
     formatted_manuscript: str = ""
     cover_letter: str = ""
+    # Primary text detection
+    primary_text_report: Optional[dict] = None
     # Error tracking
     errors: list[str] = field(default_factory=list)
     # Configuration
@@ -228,6 +230,21 @@ def create_workflow(
                 skip_acquisition=True,  # already done in acquire_refs node
             )
 
+            # Detect missing primary texts
+            pt_report_dict = None
+            try:
+                from src.research_planner.planner import detect_missing_primary_texts
+
+                pt_report = detect_missing_primary_texts(plan, db, vector_store)
+                pt_report_dict = pt_report.model_dump()
+                if not pt_report.all_available:
+                    missing_names = [m.text_name for m in pt_report.missing]
+                    logger.warning(
+                        "Missing primary texts: %s", ", ".join(missing_names)
+                    )
+            except Exception:
+                logger.debug("Primary text detection failed", exc_info=True)
+
             return {
                 "phase": WorkflowPhase.WRITE.value,
                 "plan": {
@@ -240,6 +257,7 @@ def create_workflow(
                     "status": plan.status,
                 },
                 "plan_approved": True,  # Auto-approve for now; human gate comes later
+                "primary_text_report": pt_report_dict,
             }
         except Exception as e:
             logger.error("Planning failed: %s", e)

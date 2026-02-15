@@ -208,6 +208,14 @@ class Database:
             return None
         return _row_to_paper(row)
 
+    def search_papers_by_title(self, query: str, limit: int = 5) -> list[Paper]:
+        """Search papers by title substring (case-insensitive LIKE search)."""
+        rows = self.conn.execute(
+            "SELECT * FROM papers WHERE LOWER(title) LIKE ? LIMIT ?",
+            (f"%{query.lower()}%", limit),
+        ).fetchall()
+        return [_row_to_paper(r) for r in rows]
+
     def count_papers(self, journal: Optional[str] = None) -> int:
         if journal:
             row = self.conn.execute(
