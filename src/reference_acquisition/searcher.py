@@ -1,8 +1,15 @@
-"""Search for papers across multiple APIs by research topic keywords."""
+"""Search for papers across multiple APIs by research topic keywords.
+
+Supports LLM-powered multi-language query expansion: user input in any
+language is expanded into multiple search queries in English, Chinese,
+and the original language, maximising coverage across APIs that have
+different language strengths.
+"""
 
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from typing import Any, Optional
 
@@ -11,6 +18,8 @@ from src.journal_monitor.sources.openalex import _openalex_work_to_paper
 from src.journal_monitor.sources.semantic_scholar import _s2_paper_to_paper
 from src.knowledge_base.db import Database
 from src.knowledge_base.models import Paper
+from src.knowledge_base.vector_store import VectorStore
+from src.literature_indexer.embeddings import generate_embedding
 from src.utils.api_clients import (
     CrossRefClient,
     OpenAlexClient,
@@ -25,6 +34,26 @@ _STOPWORDS = frozenset(
     " its this that these those be been has have had do does did not no".split()
 )
 
+_QUERY_EXPANSION_PROMPT = """\
+You are an academic research assistant. The user has provided a search query \
+for finding academic papers. Your task is to expand this query into multiple \
+search strings that will maximize coverage across academic databases \
+(Semantic Scholar, OpenAlex, CrossRef).
+
+Rules:
+1. Always produce queries in BOTH English AND Chinese, regardless of the input language.
+2. If the input is in another language (French, German, etc.), also include queries in that language.
+3. Generate 4-6 search query strings total.
+4. Each query should be a concise keyword phrase (3-8 words), NOT a full sentence.
+5. Include both literal translations and conceptual expansions (related terms, synonyms, broader/narrower concepts).
+6. Return ONLY a JSON array of strings, no explanation.
+
+Example input: "中国 南斯拉夫 红色歌曲"
+Example output: ["China Yugoslavia red songs", "Chinese Yugoslav revolutionary music cultural exchange", "中国南斯拉夫革命歌曲", "红色音乐 中南文化交流", "socialist revolutionary songs China Yugoslavia", "中南关系 红色文化"]
+
+User query: "{query}"
+"""
+
 
 def _extract_keywords(query: str) -> list[str]:
     """Extract meaningful lowercase keywords from a search query."""
@@ -32,6 +61,115 @@ def _extract_keywords(query: str) -> list[str]:
 
     tokens = re.split(r"\W+", query.lower())
     return [t for t in tokens if t and t not in _STOPWORDS and len(t) > 2]
+
+
+def expand_query_with_llm(query: str, llm_router: Any) -> list[str]:
+    """Use LLM to expand a search query into multilingual keyword phrases.
+
+    Args:
+        query: User's original search query in any language.
+        llm_router: An LLMRouter instance.
+
+    Returns:
+        List of expanded search query strings. Falls back to [query] on error.
+    """
+    try:
+        prompt = _QUERY_EXPANSION_PROMPT.format(query=query)
+        response = llm_router.complete(
+            task_type="query_expansion",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=500,
+        )
+        text = llm_router.get_response_text(response).strip()
+        # Strip markdown fences if present
+        if text.startswith("```"):
+            text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        queries = json.loads(text)
+        if isinstance(queries, list) and all(isinstance(q, str) for q in queries):
+            # Always include the original query
+            if query not in queries:
+                queries.insert(0, query)
+            logger.info("Query expansion: %r -> %d queries", query, len(queries))
+            return queries
+    except Exception:
+        logger.warning("LLM query expansion failed, using original query", exc_info=True)
+    return [query]
+
+
+_RELEVANCE_FILTER_PROMPT = """\
+You are an academic research assistant. The user searched for: "{query}"
+
+Below is a numbered list of paper titles found. Select the {limit} MOST relevant \
+papers for this research topic. Return ONLY a JSON array of the numbers (1-indexed), \
+ordered by relevance (most relevant first). No explanation.
+
+{paper_list}
+"""
+
+
+def filter_papers_by_relevance(
+    query: str,
+    papers: list[Paper],
+    llm_router: Any,
+    limit: int = 50,
+) -> list[Paper]:
+    """Use LLM to select the most relevant papers from a larger set.
+
+    Args:
+        query: Original user search query.
+        papers: All candidate papers.
+        llm_router: LLMRouter instance.
+        limit: Max papers to keep.
+
+    Returns:
+        Filtered list of papers, ordered by relevance.
+    """
+    if len(papers) <= limit:
+        return papers
+
+    # Build numbered list of titles for the LLM
+    lines = []
+    for i, p in enumerate(papers, 1):
+        title = (p.title or "Untitled")[:120]
+        year = f" ({p.year})" if p.year else ""
+        journal = f" — {p.journal}" if p.journal else ""
+        lines.append(f"{i}. {title}{year}{journal}")
+    paper_list = "\n".join(lines)
+
+    try:
+        prompt = _RELEVANCE_FILTER_PROMPT.format(
+            query=query, limit=limit, paper_list=paper_list
+        )
+        response = llm_router.complete(
+            task_type="query_expansion",  # lightweight, same route
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0,
+            max_tokens=1000,
+        )
+        text = llm_router.get_response_text(response).strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        indices = json.loads(text)
+        if isinstance(indices, list):
+            selected = []
+            seen = set()
+            for idx in indices:
+                i = int(idx) - 1  # convert to 0-indexed
+                if 0 <= i < len(papers) and i not in seen:
+                    selected.append(papers[i])
+                    seen.add(i)
+                if len(selected) >= limit:
+                    break
+            logger.info(
+                "LLM relevance filter: %d -> %d papers", len(papers), len(selected)
+            )
+            return selected
+    except Exception:
+        logger.warning("LLM relevance filter failed, truncating", exc_info=True)
+
+    # Fallback: just return first N
+    return papers[:limit]
 
 
 class ReferenceSearcher:
@@ -154,6 +292,122 @@ class ReferenceSearcher:
             return papers
         finally:
             await client.close()
+
+    async def search_topic_expanded(
+        self,
+        topic: str,
+        llm_router: Any,
+        max_results_per_source: int = 30,
+        max_download: int = 50,
+        progress_callback: Any = None,
+    ) -> tuple[list[Paper], list[Paper]]:
+        """Search with LLM-powered multi-language query expansion.
+
+        Expands the user query into multiple languages/variants via LLM,
+        then searches all API sources with each variant. Returns ALL
+        deduplicated papers (for metadata storage) plus an LLM-filtered
+        subset of the most relevant ones (for download/indexing).
+
+        Args:
+            topic: User's search query in any language.
+            llm_router: LLMRouter for query expansion.
+            max_results_per_source: Max results per API per query variant.
+            max_download: Max papers to select for download/indexing.
+            progress_callback: Optional async callable(progress, message).
+
+        Returns:
+            Tuple of (all_papers, top_papers):
+              - all_papers: every deduplicated result (store metadata for all)
+              - top_papers: LLM-selected most relevant subset (download these)
+        """
+        # Step 1: Expand query
+        if progress_callback:
+            await progress_callback(0.05, "Expanding search query with LLM...")
+        queries = await asyncio.to_thread(expand_query_with_llm, topic, llm_router)
+
+        if progress_callback:
+            await progress_callback(0.10, f"Searching with {len(queries)} query variants...")
+
+        # Step 2: Search with each query variant (limit per-query to avoid flooding)
+        per_query_limit = max(10, max_results_per_source // len(queries))
+        all_papers: list[Paper] = []
+
+        for i, query in enumerate(queries):
+            if progress_callback:
+                frac = 0.10 + 0.45 * (i / len(queries))
+                await progress_callback(frac, f"Searching: {query[:50]}...")
+
+            try:
+                papers = await self.search_topic(query, per_query_limit)
+                all_papers.extend(papers)
+                logger.info("Query %d/%d '%s': %d papers", i + 1, len(queries), query[:40], len(papers))
+            except Exception:
+                logger.warning("Search failed for query variant: %s", query[:40], exc_info=True)
+
+        # Deduplicate across all query variants
+        deduplicated = self._deduplicate(all_papers)
+        logger.info(
+            "Expanded search total: %d papers found, %d after dedup",
+            len(all_papers),
+            len(deduplicated),
+        )
+
+        # Step 3: LLM relevance filtering to select top papers for download
+        if len(deduplicated) > max_download:
+            if progress_callback:
+                await progress_callback(
+                    0.55, f"LLM selecting top {max_download} from {len(deduplicated)} papers..."
+                )
+            top_papers = await asyncio.to_thread(
+                filter_papers_by_relevance, topic, deduplicated, llm_router, max_download
+            )
+        else:
+            top_papers = deduplicated
+
+        return deduplicated, top_papers
+
+    async def search_local(
+        self,
+        query: str,
+        vector_store: VectorStore,
+        n_results: int = 20,
+    ) -> list[dict]:
+        """Search locally indexed papers in ChromaDB via semantic similarity.
+
+        Args:
+            query: Search query text.
+            vector_store: VectorStore instance with indexed papers.
+            n_results: Number of results to return.
+
+        Returns:
+            List of dicts with keys: paper_id, document, distance, metadata.
+        """
+        try:
+            embedding = await asyncio.to_thread(
+                generate_embedding, query, is_query=True
+            )
+            results = vector_store.search_papers(
+                query_embedding=embedding,
+                n_results=n_results,
+            )
+            hits = []
+            ids = results.get("ids", [[]])[0]
+            docs = results.get("documents", [[]])[0]
+            distances = results.get("distances", [[]])[0]
+            metadatas = results.get("metadatas", [[]])[0]
+            for j in range(len(ids)):
+                hits.append({
+                    "chunk_id": ids[j],
+                    "paper_id": ids[j].rsplit("_chunk_", 1)[0] if "_chunk_" in ids[j] else ids[j],
+                    "document": docs[j][:200] if docs[j] else "",
+                    "distance": distances[j],
+                    "metadata": metadatas[j] if j < len(metadatas) else {},
+                })
+            logger.info("Local semantic search for '%s': %d hits", query[:40], len(hits))
+            return hits
+        except Exception:
+            logger.warning("Local semantic search failed", exc_info=True)
+            return []
 
     def _deduplicate(self, papers: list[Paper]) -> list[Paper]:
         """Deduplicate papers by DOI and filter out those already in DB."""
