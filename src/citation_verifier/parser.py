@@ -158,6 +158,11 @@ def parse_mla_citations(text: str) -> list[ParsedCitation]:
                 end_pos=m.end(),
             ))
 
+    # Pre-scan: collect words that appear as *Word* (italic titles) in the text
+    _italic_titles = set(
+        t.lower() for t in re.findall(r'\*([^*]+)\*', text)
+    )
+
     # Pattern 4: Simple author + page — (Felstiner 247)
     pat_simple = re.compile(
         r'\(\s*'
@@ -174,13 +179,26 @@ def parse_mla_citations(text: str) -> list[ParsedCitation]:
             # Exclude year-like numbers
             if _is_year(page_str.split("-")[0].split("\u2013")[0].strip()):
                 continue
-            _add(ParsedCitation(
-                author=m.group(1),
-                pages=page_str,
-                raw=m.group(0),
-                start_pos=m.start(),
-                end_pos=m.end(),
-            ))
+            word = m.group(1)
+            # If this word appears as an italic title elsewhere, treat as
+            # title-only citation rather than author+page
+            if word.lower() in _italic_titles:
+                _add(ParsedCitation(
+                    title=word,
+                    title_style="italic",
+                    pages=page_str,
+                    raw=m.group(0),
+                    start_pos=m.start(),
+                    end_pos=m.end(),
+                ))
+            else:
+                _add(ParsedCitation(
+                    author=word,
+                    pages=page_str,
+                    raw=m.group(0),
+                    start_pos=m.start(),
+                    end_pos=m.end(),
+                ))
 
     # Pattern 5: Title-only italic — (*Atemwende* 78)
     pat_title_only = re.compile(

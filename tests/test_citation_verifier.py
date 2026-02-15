@@ -147,6 +147,24 @@ class TestMLACitationParser:
         assert len(cits) == 2
         assert cits[0].start_pos < cits[1].start_pos
 
+    def test_italic_title_reclassified(self):
+        """If a word appears as *Word* elsewhere, (Word 80) is title, not author."""
+        text = 'Felman and Laub\'s *Testimony* is key (Testimony 80).'
+        cits = parse_mla_citations(text)
+        assert len(cits) == 1
+        assert cits[0].author is None
+        assert cits[0].title == "Testimony"
+        assert cits[0].title_style == "italic"
+        assert cits[0].pages == "80"
+
+    def test_non_italic_word_stays_author(self):
+        """Words not appearing as *Word* remain classified as authors."""
+        text = "Felstiner argues (Felstiner 247)."
+        cits = parse_mla_citations(text)
+        assert len(cits) == 1
+        assert cits[0].author == "Felstiner"
+        assert cits[0].title is None
+
 
 # ============================================================
 # TestGroupCitations
@@ -331,14 +349,15 @@ class TestManuscriptAnnotation:
         assert "[VERIFY:work]" in result
         assert "(Chan 134) [VERIFY:work]" in result
 
-    def test_page_unverifiable_tag(self):
+    def test_page_unverifiable_no_tag(self):
+        """page_unverifiable should NOT insert a tag (book pages too common)."""
         text = "text (Felstiner 247) more."
         v = CitationVerification(
             citation=self._make_citation("(Felstiner 247)", 5, 20),
             status="page_unverifiable",
         )
         result = annotate_manuscript(text, [v])
-        assert "(Felstiner 247) [VERIFY:page]" in result
+        assert result == text
 
     def test_page_out_of_range_tag(self):
         text = "text (Hamacher 999) more."
@@ -367,11 +386,11 @@ class TestManuscriptAnnotation:
         )
         v2 = CitationVerification(
             citation=self._make_citation("(B 20)", 20, 26),
-            status="page_unverifiable",
+            status="page_out_of_range",
         )
         result = annotate_manuscript(text, [v1, v2])
         assert "(A 10) [VERIFY:work]" in result
-        assert "(B 20) [VERIFY:page]" in result
+        assert "(B 20) [VERIFY:page-range]" in result
 
 
 # ============================================================
@@ -703,8 +722,8 @@ class TestPipeline:
                     author="Felstiner", pages="247",
                     raw="(Felstiner 247)", start_pos=4, end_pos=19,
                 ),
-                status="page_unverifiable",
-                confidence=0.7,
+                status="work_not_found",
+                confidence=0.0,
             ),
             CitationVerification(
                 citation=ParsedCitation(
@@ -723,11 +742,10 @@ class TestPipeline:
         ):
             annotated, report = await verify_manuscript_citations(text)
 
-        assert "[VERIFY:page]" in annotated
-        assert "[VERIFY:work]" not in annotated
+        assert "[VERIFY:work]" in annotated
         assert report.total == 2
         assert report.verified == 1
-        assert report.page_unverifiable == 1
+        assert report.work_not_found == 1
 
 
 # ============================================================
