@@ -189,28 +189,33 @@ class CitationManager:
         else:
             author_str = f"{ref.authors[0]} et al."
 
-        title_part = f'"{ref.title},"'
-        journal_part = ""
-        if ref.journal:
-            journal_part = f" *{ref.journal}*"
-            if ref.volume:
-                journal_part += f" {ref.volume}"
-            if ref.issue:
-                journal_part += f", no. {ref.issue}"
-            journal_part += f" ({ref.year})"
-            p = page or ref.pages
-            if p:
-                journal_part += f": {p}"
-        else:
-            if ref.publisher:
-                journal_part = f" ({ref.publisher}, {ref.year})"
-            else:
-                journal_part = f" ({ref.year})"
-            p = page or ref.pages
-            if p:
-                journal_part += f", {p}"
+        book = _is_book(ref)
+        p = page or ref.pages
 
-        return f"{author_str}, {title_part}{journal_part}."
+        if ref.journal:
+            # Article: Author, "Title," *Journal* vol, no. issue (Year): page.
+            parts = f'{author_str}, "{ref.title}," *{ref.journal}*'
+            if ref.volume:
+                parts += f" {ref.volume}"
+            if ref.issue:
+                parts += f", no. {ref.issue}"
+            parts += f" ({ref.year})"
+            if p:
+                parts += f": {p}"
+            return parts + "."
+        elif book:
+            # Book: Author, *Title* (Publisher, Year), page.
+            pub_info = f"{ref.publisher}, " if ref.publisher else ""
+            parts = f"{author_str}, *{ref.title}* ({pub_info}{ref.year})"
+            if p:
+                parts += f", {p}"
+            return parts + "."
+        else:
+            # Fallback
+            parts = f'{author_str}, "{ref.title}" ({ref.year})'
+            if p:
+                parts += f", {p}"
+            return parts + "."
 
     def format_footnote_short(
         self,
@@ -232,10 +237,19 @@ class CitationManager:
         if len(words) > 4:
             short_title += "..."
 
+        book = _is_book(ref)
         p = page or ref.pages
-        if p:
-            return f'{surname}, "{short_title}," {p}.'
-        return f'{surname}, "{short_title}."'
+
+        if book:
+            # Book: Surname, *Short Title*, page.
+            if p:
+                return f"{surname}, *{short_title}*, {p}."
+            return f"{surname}, *{short_title}*."
+        else:
+            # Article: Surname, "Short Title," page.
+            if p:
+                return f'{surname}, "{short_title}," {p}.'
+            return f'{surname}, "{short_title}."'
 
     def get_all_footnotes(self) -> list[str]:
         """Return all accumulated footnotes in order."""
@@ -548,15 +562,55 @@ class CitationManager:
 # ====================================================================== #
 
 
+def _is_book(ref: Reference) -> bool:
+    """Heuristic: determine if a Reference is a book (vs. journal article).
+
+    Books get italicised titles; articles get quoted titles.
+    """
+    # Has a journal field → article
+    if ref.journal:
+        return False
+    # Has a publisher → book
+    if ref.publisher:
+        return True
+    # ref_type hints
+    if ref.ref_type in ("primary_literary", "theory", "reference_work"):
+        return True
+    return False
+
+
+# Pen names and compound names that must NOT be split into first/last.
+_KEEP_WHOLE_NAMES: set[str] = {
+    "can xue", "残雪", "mo yan", "莫言", "ba jin", "巴金",
+    "lao she", "老舍", "bing xin", "冰心", "lu xun", "鲁迅",
+    "cao xueqin", "曹雪芹", "ding ling", "丁玲", "qian zhongshu",
+    "han han", "韩寒", "gao xingjian", "高行健",
+}
+
+
+def _is_keep_whole_name(name: str) -> bool:
+    """Check if a name should be kept whole (pen names, CJK names)."""
+    stripped = name.strip()
+    if stripped.lower() in _KEEP_WHOLE_NAMES:
+        return True
+    # Pure CJK with no spaces and ≤4 chars (typical Chinese name) → keep whole
+    if " " not in stripped and all('\u4e00' <= c <= '\u9fff' for c in stripped) and len(stripped) <= 4:
+        return True
+    return False
+
+
 def _extract_surname(name: str) -> str:
     """Extract the surname from an author name string.
 
-    Handles both 'First Last' and 'Last, First' formats, as well as
-    single-word Chinese names.
+    Handles 'First Last', 'Last, First' formats, single-word Chinese
+    names, and pen names (e.g. 'Can Xue' → 'Can Xue', not 'Xue').
     """
     name = name.strip()
     if not name:
         return ""
+    # Pen names / CJK: keep whole
+    if _is_keep_whole_name(name):
+        return name
     if "," in name:
         return name.split(",")[0].strip()
     parts = name.split()
@@ -564,8 +618,13 @@ def _extract_surname(name: str) -> str:
 
 
 def _author_last_first(name: str) -> str:
-    """Convert 'First Last' to 'Last, First'."""
+    """Convert 'First Last' to 'Last, First'.
+
+    Pen names and CJK names are returned as-is.
+    """
     name = name.strip()
+    if _is_keep_whole_name(name):
+        return name
     if "," in name:
         return name  # already Last, First
     parts = name.split()
@@ -593,6 +652,7 @@ def _format_inline_mla(
 
 
 def _format_bib_mla(ref: Reference) -> str:
+    # --- Author ---
     if not ref.authors:
         author_str = "Unknown Author"
     elif len(ref.authors) == 1:
@@ -605,24 +665,34 @@ def _format_bib_mla(ref: Reference) -> str:
     else:
         author_str = f"{_author_last_first(ref.authors[0])}, et al."
 
-    title_part = f"\"{ref.title}.\""
-    journal_part = ""
+    book = _is_book(ref)
+    doi_part = f" https://doi.org/{ref.doi}." if ref.doi else ""
+
     if ref.journal:
-        journal_part = f" *{ref.journal}*"
+        # --- Journal article ---
+        # MLA: Author. "Title." *Journal*, vol. X, no. Y, Year, pp. Z.
+        parts = f'{author_str}. "{ref.title}." *{ref.journal}*'
         if ref.volume:
-            journal_part += f", vol. {ref.volume}"
+            parts += f", vol. {ref.volume}"
         if ref.issue:
-            journal_part += f", no. {ref.issue}"
-        journal_part += f", {ref.year}"
+            parts += f", no. {ref.issue}"
+        parts += f", {ref.year}"
         if ref.pages:
-            journal_part += f", pp. {ref.pages}"
-        journal_part += "."
-
-    doi_part = ""
-    if ref.doi:
-        doi_part = f" https://doi.org/{ref.doi}."
-
-    return f"{author_str}. {title_part}{journal_part}{doi_part}"
+            parts += f", pp. {ref.pages}"
+        parts += f".{doi_part}"
+        return parts
+    elif book:
+        # --- Book ---
+        # MLA: Author. *Title*. Publisher, Year.
+        parts = f"{author_str}. *{ref.title}*."
+        if ref.publisher:
+            parts += f" {ref.publisher},"
+        parts += f" {ref.year}."
+        return parts
+    else:
+        # --- Fallback (unknown type) ---
+        parts = f'{author_str}. "{ref.title}." {ref.year}.'
+        return parts + doi_part
 
 
 # ---- Chicago 17th ed. (notes-bibliography) -------------------------- #
@@ -639,6 +709,7 @@ def _format_inline_chicago(
 
 
 def _format_bib_chicago(ref: Reference) -> str:
+    # --- Author ---
     if not ref.authors:
         author_str = "Unknown Author"
     elif len(ref.authors) == 1:
@@ -647,24 +718,34 @@ def _format_bib_chicago(ref: Reference) -> str:
         others = ", ".join(ref.authors[1:])
         author_str = f"{_author_last_first(ref.authors[0])}, {others}"
 
-    title_part = f"\"{ref.title}.\""
-    journal_part = ""
+    book = _is_book(ref)
+    doi_part = f" https://doi.org/{ref.doi}." if ref.doi else ""
+
     if ref.journal:
-        journal_part = f" *{ref.journal}*"
+        # --- Journal article ---
+        # Chicago: Author. "Title." *Journal* vol, no. issue (Year): pages.
+        parts = f'{author_str}. "{ref.title}." *{ref.journal}*'
         if ref.volume:
-            journal_part += f" {ref.volume}"
+            parts += f" {ref.volume}"
         if ref.issue:
-            journal_part += f", no. {ref.issue}"
-        journal_part += f" ({ref.year})"
+            parts += f", no. {ref.issue}"
+        parts += f" ({ref.year})"
         if ref.pages:
-            journal_part += f": {ref.pages}"
-        journal_part += "."
-
-    doi_part = ""
-    if ref.doi:
-        doi_part = f" https://doi.org/{ref.doi}."
-
-    return f"{author_str}. {title_part}{journal_part}{doi_part}"
+            parts += f": {ref.pages}"
+        parts += f".{doi_part}"
+        return parts
+    elif book:
+        # --- Book ---
+        # Chicago: Author. *Title*. Publisher, Year.
+        parts = f"{author_str}. *{ref.title}*."
+        if ref.publisher:
+            parts += f" {ref.publisher},"
+        parts += f" {ref.year}."
+        return parts
+    else:
+        # --- Fallback ---
+        parts = f'{author_str}. "{ref.title}." {ref.year}.'
+        return parts + doi_part
 
 
 # ---- GB/T 7714-2015 ------------------------------------------------ #
@@ -688,22 +769,25 @@ def _format_bib_gb(ref: Reference) -> str:
     else:
         author_str = ", ".join(ref.authors[:3]) + ", et al"
 
-    title_part = f"{ref.title}[J]"
-    journal_part = ""
+    book = _is_book(ref)
+    doi_part = f" DOI:{ref.doi}." if ref.doi else ""
+
     if ref.journal:
-        journal_part = f". {ref.journal}, {ref.year}"
+        # Article: Author. Title[J]. Journal, Year, Vol(Issue): Pages.
+        parts = f"{author_str}. {ref.title}[J]. {ref.journal}, {ref.year}"
         if ref.volume:
-            journal_part += f", {ref.volume}"
+            parts += f", {ref.volume}"
         if ref.issue:
-            journal_part += f"({ref.issue})"
+            parts += f"({ref.issue})"
         if ref.pages:
-            journal_part += f": {ref.pages}"
-        journal_part += "."
+            parts += f": {ref.pages}"
+        return parts + f".{doi_part}"
+    elif book:
+        # Book: Author. Title[M]. Publisher, Year.
+        parts = f"{author_str}. {ref.title}[M]."
+        if ref.publisher:
+            parts += f" {ref.publisher},"
+        parts += f" {ref.year}."
+        return parts + doi_part
     else:
-        journal_part = f". {ref.year}."
-
-    doi_part = ""
-    if ref.doi:
-        doi_part = f" DOI:{ref.doi}."
-
-    return f"{author_str}. {title_part}{journal_part}{doi_part}"
+        return f"{author_str}. {ref.title}. {ref.year}.{doi_part}"
