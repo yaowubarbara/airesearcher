@@ -1,8 +1,8 @@
 # AI Researcher - Project Memory
 
 ## Current Status
-- Phase: 11 (Citation Verification Post-Processing) — COMPLETE
-- Last completed: Phase 11 (citation verification pipeline: parse → verify → annotate → report)
+- Phase: 11+ (Review-Guided Revision) — COMPLETE
+- Last completed: Review-guided automatic revision (revise_manuscript + orchestrator branching)
 - Currently working on: Nothing
 - Blockers: None
 
@@ -232,7 +232,7 @@
 ## Test Summary
 - `tests/test_monitor.py` — 7 unit tests (DB operations)
 - `tests/test_verifier.py` — 11 unit tests (format checker, DOI resolver)
-- `tests/test_writer.py` — 20 unit tests (language detection, chunking, citations, word count)
+- `tests/test_writer.py` — 26 unit tests (language detection, chunking, citations, word count, revise_manuscript, format_review_feedback)
 - `tests/test_reference_acquisition.py` — 20 unit tests + 3 integration tests (OA extraction, dedup, DB, web searcher)
 - `tests/test_oa_resolver.py` — 40 unit tests + 3 integration tests (Unpaywall, CORE, arXiv, Europe PMC, priority order, batch, fallback)
 - `tests/test_integration_apis.py` — 14 integration tests (real API calls)
@@ -243,7 +243,7 @@
 - `tests/test_citation_phase10.py` — 54 tests (Phase 10 citation features: secondary citations, footnotes, block quotes, multilingual, type classification, profile loading)
 - `tests/test_citation_manager.py` — 83 tests (Phase 10.5: footnotes, block quotes, secondary citation, multilingual inline, extended format_citation, verify_all_citations, critic parsing, type grouping, bibliography formatting)
 - `tests/test_citation_verifier.py` — 64 tests (Phase 11: MLA parser, page range validation, annotation, report, engine verify, search methods, pipeline)
-- **Total: 358 unit tests + 5 LLM pipeline tests, all passing (LLM tests skip without ZHIPUAI_API_KEY)**
+- **Total: 372 unit tests + 5 LLM pipeline tests, all passing (LLM tests skip without ZHIPUAI_API_KEY)**
 
 ## Key Decisions
 - LiteLLM as unified LLM gateway (see decisions.md #001)

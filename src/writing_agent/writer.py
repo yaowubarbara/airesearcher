@@ -32,15 +32,40 @@ _SECONDARY_TYPES = {ReferenceType.SECONDARY_CRITICISM, ReferenceType.HISTORICAL_
                     ReferenceType.SELF_CITATION}
 _THEORY_TYPES = {ReferenceType.THEORY}
 
+# Language-specific examples of erudite vocabulary to inject into prompts
+_ERUDITE_VOCAB_EXAMPLES = {
+    Language.EN: (
+        "Examples: Latinate/Greek-derived terms (aporia, palimpsest, hermeneutic, "
+        "prolepsis, ekphrasis, chiasmus, diegesis, catachresis, metonymy, "
+        "transubstantiation, quiddity, teleological, dialectical, liminality, "
+        "anagnorisis, defamiliarization). Use them naturally where they sharpen "
+        "meaning — not decoratively."
+    ),
+    Language.ZH: (
+        "示例：使用成语（如管中窥豹、曲径通幽、庖丁解牛）；引用古诗词名句作为论证切入点；"
+        "适当使用拉丁/希腊语学术术语（如 aporia、telos、logos）并给出中文释义；"
+        "运用文言表达（如「所谓」「盖因」「殆非」）增加学理厚度。"
+        "自然融入论述，勿堆砌。"
+    ),
+    Language.FR: (
+        "Exemples : termes savants gréco-latins (aporie, herméneutique, diégèse, "
+        "prolepse, ekphrasis, catachrèse, chiasme, palimpseste, épistémè, "
+        "téléologique, dialectique, liminalité, anagnorisis), locutions latines "
+        "(a fortiori, sui generis, in medias res). Les employer naturellement "
+        "pour affiner le propos, non par ornement."
+    ),
+}
+
 
 class WritingAgent:
     """Generates academic manuscript sections through Self-Refine iteration.
 
     The Self-Refine loop works as follows:
       1. Generate an initial draft for a section.
-      2. A critic evaluates the draft on five axes (1-5 each):
+      2. A critic evaluates the draft on six axes (1-5 each):
          close_reading_depth, argument_logic, citation_density,
-         citation_sophistication, quote_paraphrase_ratio.
+         citation_sophistication, quote_paraphrase_ratio,
+         erudite_vocabulary.
       3. If any axis scores below the minimum threshold, the critic produces
          specific revision instructions and the draft is revised.
       4. Steps 2-3 repeat for up to ``_MAX_REFINE_ITERATIONS`` rounds.
@@ -146,6 +171,112 @@ class WritingAgent:
         self.db.insert_manuscript(manuscript)
 
         return manuscript
+
+    async def revise_manuscript(
+        self,
+        plan: ResearchPlan,
+        current_manuscript: Manuscript,
+        review_result: dict,
+    ) -> Manuscript:
+        """Revise an existing manuscript guided by reviewer feedback.
+
+        Instead of writing from scratch, this method feeds each section's
+        current text plus the reviewer's consolidated feedback into
+        ``_revise_draft()`` so the Self-Refine loop becomes a guided
+        improvement rather than a lottery re-draw.
+
+        Args:
+            plan: The research plan (outline, thesis, references, etc.).
+            current_manuscript: The manuscript produced by the previous draft.
+            review_result: Dict with ``scores``, ``revision_instructions``,
+                and ``comments`` from ``SelfReviewAgent``.
+
+        Returns:
+            A new :class:`Manuscript` with incremented version and
+            status ``"revision"``.
+        """
+        reflexion_memories = self._load_reflexion_memories(plan)
+
+        # --- Format reviewer feedback into a single instruction block --- #
+        feedback_block = self._format_review_feedback(review_result)
+
+        # --- Revise each section ---------------------------------------- #
+        sections: dict[str, str] = {}
+        all_text_parts: list[str] = []
+
+        for section in plan.outline:
+            current_text = current_manuscript.sections.get(section.title, "")
+            if current_text:
+                revised = await self._revise_draft(
+                    draft=current_text,
+                    revision_instructions=feedback_block,
+                    section=section,
+                    plan=plan,
+                    reflexion_memories=reflexion_memories,
+                )
+            else:
+                # Section missing from previous draft — write from scratch
+                revised = await self.write_section(section, plan, reflexion_memories)
+
+            sections[section.title] = revised
+            all_text_parts.append(f"## {section.title}\n\n{revised}")
+
+        full_text = "\n\n".join(all_text_parts)
+
+        # Regenerate abstract for revised content
+        abstract = await self._generate_abstract(full_text, plan)
+
+        manuscript = Manuscript(
+            id=str(uuid.uuid4()),
+            plan_id=plan.id or "",
+            title=plan.thesis_statement,
+            target_journal=plan.target_journal,
+            language=plan.target_language,
+            sections=sections,
+            full_text=full_text,
+            abstract=abstract,
+            reference_ids=plan.reference_ids,
+            word_count=len(full_text.split()),
+            version=current_manuscript.version + 1,
+            status="revision",
+            created_at=current_manuscript.created_at,
+            updated_at=datetime.utcnow(),
+        )
+
+        # Persist
+        self.db.insert_manuscript(manuscript)
+
+        return manuscript
+
+    @staticmethod
+    def _format_review_feedback(review_result: dict) -> str:
+        """Format reviewer scores, instructions, and comments into a prompt block."""
+        parts: list[str] = []
+
+        scores = review_result.get("scores", {})
+        if scores:
+            scores_str = ", ".join(f"{k}={v}" for k, v in scores.items())
+            parts.append(f"REVIEWER SCORES: {scores_str}")
+
+        instructions = review_result.get("revision_instructions", [])
+        if instructions:
+            if isinstance(instructions, list):
+                numbered = "\n".join(
+                    f"{i}. {instr}" for i, instr in enumerate(instructions, 1)
+                )
+            else:
+                numbered = str(instructions)
+            parts.append(f"REVISION INSTRUCTIONS (prioritized):\n{numbered}")
+
+        comments = review_result.get("comments", [])
+        if comments:
+            if isinstance(comments, list):
+                comment_block = "\n".join(f"- {c}" for c in comments)
+            else:
+                comment_block = str(comments)
+            parts.append(f"REVIEWER COMMENTS:\n{comment_block}")
+
+        return "\n\n".join(parts)
 
     # ------------------------------------------------------------------ #
     #  Private: reference context retrieval from ChromaDB
@@ -336,7 +467,11 @@ class WritingAgent:
             f"6. Vary citation verbs: writes, argues, notes, observes, contends, insists, "
             f"suggests, points out, cautions, declares.\n"
             f"7. Every paragraph must advance the argument with evidence. No filler, "
-            f"no padding, but FULL development of each point.\n\n"
+            f"no padding, but FULL development of each point.\n"
+            f"8. Use ERUDITE SCHOLARLY TERMS where they sharpen meaning — learned "
+            f"vocabulary that signals deep disciplinary command (e.g., Latinate/Greek "
+            f"terms, technical rhetorical or philosophical concepts). The full "
+            f"manuscript needs at least 5 total; not every section must have them.\n\n"
             f"The writing should advance the thesis: \"{plan.thesis_statement}\""
         )
 
@@ -366,7 +501,8 @@ class WritingAgent:
         Returns:
             A tuple of (scores_dict, revision_instructions_string).
             scores_dict keys: close_reading_depth, argument_logic,
-            citation_density, citation_sophistication, quote_paraphrase_ratio.
+            citation_density, citation_sophistication, quote_paraphrase_ratio,
+            erudite_vocabulary.
         """
         system_prompt = (
             "You are a rigorous academic peer reviewer specializing in comparative "
@@ -379,6 +515,7 @@ class WritingAgent:
             "  \"citation_density\": <int 1-5>,\n"
             "  \"citation_sophistication\": <int 1-5>,\n"
             "  \"quote_paraphrase_ratio\": <int 1-5>,\n"
+            "  \"erudite_vocabulary\": <int 1-5>,\n"
             "  \"revision_instructions\": \"<detailed instructions if any score < 3, "
             "else empty string>\"\n"
             "}"
@@ -409,7 +546,16 @@ class WritingAgent:
             f"selective quotation of key formulations; theory should quote "
             f"precise terms but paraphrase general arguments. Short phrase "
             f"quotations (1-8 words) should be most common, with block quotes "
-            f"reserved for close-reading passages.\n\n"
+            f"reserved for close-reading passages.\n"
+            f"- erudite_vocabulary: Does the section use any learned scholarly "
+            f"terms (Latinate/Greek-derived concepts, technical rhetorical or "
+            f"philosophical vocabulary, discipline-specific terminology) where "
+            f"they sharpen meaning? For Chinese texts, this includes 成语, classical "
+            f"allusions, and Latin/Greek loan-terms with glosses. The full manuscript "
+            f"needs at least 5 total, so not every section must have them. "
+            f"Score 1 if the prose is entirely plain everyday language; 3 if at "
+            f"least one or two apt terms appear; 5 if learned vocabulary is deployed "
+            f"naturally where it adds precision.\n\n"
             f"If ANY score is below 3, provide specific, actionable revision "
             f"instructions explaining exactly what needs improvement and how."
         )
@@ -545,7 +691,11 @@ class WritingAgent:
             f"- Integrate close readings of primary texts with theoretical argument.\n"
             f"- Include parenthetical citations for every claim from a source.\n"
             f"- Use sophisticated but clear academic diction.\n"
-            f"- Maintain a coherent argumentative thread throughout."
+            f"- Maintain a coherent argumentative thread throughout.\n"
+            f"- ERUDITE VOCABULARY: the full manuscript MUST contain at least 5 "
+            f"learned scholarly terms that demonstrate deep disciplinary knowledge. "
+            f"Distribute them naturally across sections — not every section needs them. "
+            f"{_ERUDITE_VOCAB_EXAMPLES.get(plan.target_language, _ERUDITE_VOCAB_EXAMPLES[Language.EN])}"
         )
 
         # Inject citation profile norms if available
@@ -682,6 +832,7 @@ def _parse_critic_response(raw: str) -> tuple[dict[str, int], str]:
         "citation_density": 1,
         "citation_sophistication": 1,
         "quote_paraphrase_ratio": 1,
+        "erudite_vocabulary": 1,
     }
 
     # Try to extract JSON from the response (may be wrapped in markdown fences)
@@ -700,6 +851,7 @@ def _parse_critic_response(raw: str) -> tuple[dict[str, int], str]:
         "citation_density": int(data.get("citation_density", 1)),
         "citation_sophistication": int(data.get("citation_sophistication", 3)),
         "quote_paraphrase_ratio": int(data.get("quote_paraphrase_ratio", 3)),
+        "erudite_vocabulary": int(data.get("erudite_vocabulary", 3)),
     }
 
     instructions = data.get("revision_instructions", "")

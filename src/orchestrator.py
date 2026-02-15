@@ -272,7 +272,13 @@ def create_workflow(
                 reference_ids=state.plan.get("reference_ids", []),
             )
 
-            manuscript = await writer.write_full_manuscript(plan)
+            if state.revision_count > 0 and state.review_result and state.manuscript:
+                current_ms = Manuscript(**state.manuscript)
+                manuscript = await writer.revise_manuscript(
+                    plan, current_ms, state.review_result
+                )
+            else:
+                manuscript = await writer.write_full_manuscript(plan)
 
             return {
                 "phase": WorkflowPhase.VERIFY.value,
