@@ -10,11 +10,15 @@ from pathlib import Path
 from typing import Optional
 
 from .models import (
+    AnnotationGap,
+    AnnotationScale,
     Language,
     LLMUsageRecord,
     Manuscript,
     Paper,
+    PaperAnnotation,
     PaperStatus,
+    ProblematiqueDirection,
     Quotation,
     Reference,
     ReferenceType,
@@ -89,6 +93,11 @@ class Database:
             self.conn.execute(
                 "ALTER TABLE search_session_papers ADD COLUMN recommended INTEGER NOT NULL DEFAULT 0"
             )
+        # Migration: add direction_id column to topic_proposals if missing
+        try:
+            self.conn.execute("SELECT direction_id FROM topic_proposals LIMIT 1")
+        except sqlite3.OperationalError:
+            self.conn.execute("ALTER TABLE topic_proposals ADD COLUMN direction_id TEXT")
         self.conn.commit()
 
     def close(self) -> None:
@@ -371,8 +380,8 @@ class Database:
             """INSERT INTO topic_proposals
             (id, title, research_question, gap_description, evidence_paper_ids,
              target_journals, novelty_score, feasibility_score, journal_fit_score,
-             timeliness_score, overall_score, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+             timeliness_score, overall_score, direction_id, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 topic_id,
                 topic.title,
@@ -385,6 +394,7 @@ class Database:
                 topic.journal_fit_score,
                 topic.timeliness_score,
                 topic.overall_score,
+                topic.direction_id,
                 topic.status,
                 now,
             ),
@@ -562,6 +572,112 @@ class Database:
             FROM llm_usage GROUP BY model, task_type"""
         ).fetchall()
         return {f"{r['model']}:{r['task_type']}": dict(r) for r in rows}
+
+    # --- Paper Annotations ---
+
+    def insert_annotation(self, ann: PaperAnnotation) -> str:
+        ann_id = ann.id or str(uuid.uuid4())
+        now = ann.created_at.isoformat() if ann.created_at else datetime.utcnow().isoformat()
+        self.conn.execute(
+            """INSERT OR REPLACE INTO paper_annotations
+            (id, paper_id, tensions, mediators, scale, gap, evidence,
+             deobjectification, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                ann_id,
+                ann.paper_id,
+                json.dumps(ann.tensions),
+                json.dumps(ann.mediators),
+                ann.scale.value,
+                ann.gap.value,
+                ann.evidence,
+                ann.deobjectification,
+                now,
+            ),
+        )
+        self.conn.commit()
+        return ann_id
+
+    def get_annotation(self, paper_id: str) -> Optional[PaperAnnotation]:
+        row = self.conn.execute(
+            "SELECT * FROM paper_annotations WHERE paper_id = ?", (paper_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        return _row_to_annotation(row)
+
+    def get_annotations(self, limit: int = 500) -> list[PaperAnnotation]:
+        rows = self.conn.execute(
+            "SELECT * FROM paper_annotations ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [_row_to_annotation(r) for r in rows]
+
+    def get_unannotated_papers(self, limit: int = 200) -> list[Paper]:
+        """Return papers with non-empty abstracts that lack annotations."""
+        rows = self.conn.execute(
+            """SELECT p.* FROM papers p
+            LEFT JOIN paper_annotations pa ON p.id = pa.paper_id
+            WHERE pa.id IS NULL
+            AND p.abstract IS NOT NULL AND p.abstract != ''
+            ORDER BY p.year DESC LIMIT ?""",
+            (limit,),
+        ).fetchall()
+        return [_row_to_paper(r) for r in rows]
+
+    def count_annotations(self) -> int:
+        row = self.conn.execute("SELECT COUNT(*) FROM paper_annotations").fetchone()
+        return row[0]
+
+    # --- Problematique Directions ---
+
+    def insert_direction(self, d: ProblematiqueDirection) -> str:
+        d_id = d.id or str(uuid.uuid4())
+        now = d.created_at.isoformat() if d.created_at else datetime.utcnow().isoformat()
+        self.conn.execute(
+            """INSERT OR REPLACE INTO problematique_directions
+            (id, title, description, dominant_tensions, dominant_mediators,
+             dominant_scale, dominant_gap, paper_ids, topic_ids, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                d_id,
+                d.title,
+                d.description,
+                json.dumps(d.dominant_tensions),
+                json.dumps(d.dominant_mediators),
+                d.dominant_scale,
+                d.dominant_gap,
+                json.dumps(d.paper_ids),
+                json.dumps(d.topic_ids),
+                now,
+            ),
+        )
+        self.conn.commit()
+        return d_id
+
+    def get_directions(self, limit: int = 20) -> list[ProblematiqueDirection]:
+        rows = self.conn.execute(
+            "SELECT * FROM problematique_directions ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [_row_to_direction(r) for r in rows]
+
+    def get_direction(self, direction_id: str) -> Optional[ProblematiqueDirection]:
+        row = self.conn.execute(
+            "SELECT * FROM problematique_directions WHERE id = ?", (direction_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        return _row_to_direction(row)
+
+    def get_topics_by_direction(
+        self, direction_id: str, limit: int = 20
+    ) -> list[TopicProposal]:
+        rows = self.conn.execute(
+            "SELECT * FROM topic_proposals WHERE direction_id = ? ORDER BY created_at DESC LIMIT ?",
+            (direction_id, limit),
+        ).fetchall()
+        return [_row_to_topic(r) for r in rows]
 
     # --- Search Sessions ---
 
@@ -746,6 +862,7 @@ def _row_to_quotation(row: sqlite3.Row) -> Quotation:
 
 
 def _row_to_topic(row: sqlite3.Row) -> TopicProposal:
+    keys = row.keys()
     return TopicProposal(
         id=row["id"],
         title=row["title"],
@@ -758,7 +875,47 @@ def _row_to_topic(row: sqlite3.Row) -> TopicProposal:
         journal_fit_score=row["journal_fit_score"],
         timeliness_score=row["timeliness_score"],
         overall_score=row["overall_score"],
+        direction_id=row["direction_id"] if "direction_id" in keys else None,
         status=row["status"],
+        created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+    )
+
+
+def _row_to_annotation(row: sqlite3.Row) -> PaperAnnotation:
+    scale_val = row["scale"] if row["scale"] else "textual"
+    gap_val = row["gap"] if row["gap"] else "mediational_gap"
+    try:
+        scale = AnnotationScale(scale_val)
+    except ValueError:
+        scale = AnnotationScale.TEXTUAL
+    try:
+        gap = AnnotationGap(gap_val)
+    except ValueError:
+        gap = AnnotationGap.MEDIATIONAL_GAP
+    return PaperAnnotation(
+        id=row["id"],
+        paper_id=row["paper_id"],
+        tensions=json.loads(row["tensions"]) if row["tensions"] else [],
+        mediators=json.loads(row["mediators"]) if row["mediators"] else [],
+        scale=scale,
+        gap=gap,
+        evidence=row["evidence"] or "",
+        deobjectification=row["deobjectification"] or "",
+        created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
+    )
+
+
+def _row_to_direction(row: sqlite3.Row) -> ProblematiqueDirection:
+    return ProblematiqueDirection(
+        id=row["id"],
+        title=row["title"],
+        description=row["description"] or "",
+        dominant_tensions=json.loads(row["dominant_tensions"]) if row["dominant_tensions"] else [],
+        dominant_mediators=json.loads(row["dominant_mediators"]) if row["dominant_mediators"] else [],
+        dominant_scale=row["dominant_scale"],
+        dominant_gap=row["dominant_gap"],
+        paper_ids=json.loads(row["paper_ids"]) if row["paper_ids"] else [],
+        topic_ids=json.loads(row["topic_ids"]) if row["topic_ids"] else [],
         created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
     )
 
@@ -898,6 +1055,33 @@ CREATE TABLE IF NOT EXISTS llm_usage (
     cost_usd REAL DEFAULT 0,
     latency_ms INTEGER DEFAULT 0,
     success INTEGER DEFAULT 1,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS paper_annotations (
+    id TEXT PRIMARY KEY,
+    paper_id TEXT NOT NULL UNIQUE,
+    tensions TEXT NOT NULL DEFAULT '[]',
+    mediators TEXT NOT NULL DEFAULT '[]',
+    scale TEXT NOT NULL DEFAULT 'textual',
+    gap TEXT NOT NULL DEFAULT 'mediational_gap',
+    evidence TEXT NOT NULL DEFAULT '',
+    deobjectification TEXT NOT NULL DEFAULT '',
+    created_at TEXT,
+    FOREIGN KEY (paper_id) REFERENCES papers(id)
+);
+CREATE INDEX IF NOT EXISTS idx_annotations_paper ON paper_annotations(paper_id);
+
+CREATE TABLE IF NOT EXISTS problematique_directions (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    dominant_tensions TEXT NOT NULL DEFAULT '[]',
+    dominant_mediators TEXT NOT NULL DEFAULT '[]',
+    dominant_scale TEXT,
+    dominant_gap TEXT,
+    paper_ids TEXT NOT NULL DEFAULT '[]',
+    topic_ids TEXT NOT NULL DEFAULT '[]',
     created_at TEXT
 );
 

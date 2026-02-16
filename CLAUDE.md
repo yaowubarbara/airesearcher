@@ -1,8 +1,8 @@
 # AI Researcher - Project Memory
 
 ## Current Status
-- Phase: 13 (Pre-Plan Readiness Gate + Per-Section Reference Grounding) — COMPLETE
-- Last completed: Readiness gate, per-section reference grounding, problématique enforcement
+- Phase: 14 (Discovery Refactor: Problématique Ontology) — COMPLETE
+- Last completed: P-ontology annotation, direction clustering, topic generation, two-level frontend
 - Currently working on: Nothing
 - Blockers: None
 
@@ -10,7 +10,7 @@
 - LangGraph StateGraph orchestrator connecting all modules
 - LiteLLM unified LLM gateway with task-based routing
 - ChromaDB for vector storage, SQLite for metadata
-- Multi-agent patterns: STORM (topic discovery), Self-Refine (writing), Reflexion (memory), Corrective RAG (research planning), Multi-Agent Debate (self-review)
+- Multi-agent patterns: **P-ontology annotation** (topic discovery), Self-Refine (writing), Reflexion (memory), Corrective RAG (research planning), Multi-Agent Debate (self-review)
 - **Reference Acquisition Pipeline**: API search → auto-download OA PDFs → **multi-source OA resolution** → **institutional proxy** → human wishlist → batch index → ChromaDB → writer context injection
 
 ## Module Progress
@@ -21,7 +21,7 @@
 - [x] journal_monitor/sources/* (semantic_scholar, openalex, crossref, cnki stub, rss)
 - [x] journal_monitor/monitor.py, models.py
 - [x] literature_indexer/pdf_parser.py, embeddings.py, indexer.py
-- [x] topic_discovery/gap_analyzer.py, trend_tracker.py, topic_scorer.py
+- [x] topic_discovery/gap_analyzer.py (**P-ontology annotation**), trend_tracker.py (**direction clustering**), topic_scorer.py (**topic generation**)
 - [x] research_planner/planner.py, outline_generator.py, reference_selector.py
 - [x] writing_agent/writer.py, close_reader.py, citation_manager.py
 - [x] reference_verifier/verifier.py, doi_resolver.py, format_checker.py
@@ -39,14 +39,15 @@
 - [x] **config/proxy.yaml** (institutional proxy config with 11 publisher domains)
 - [x] **config/citation_profiles/comparative_literature.yaml** (citation norms from 6-article analysis)
 - [x] **citation_verifier/** (parser, engine, annotator, pipeline — MLA citation parsing + CrossRef/OpenAlex verification + [VERIFY] tags)
-- [x] **Web frontend** — Next.js + FastAPI: ReadinessPanel (upload + re-check), PlanOutline (per-section grounding), PlanChat, sufficiency gate
-- [x] tests/ (14 test files, 469 unit tests total)
+- [x] **Web frontend** — Next.js + FastAPI: ReadinessPanel (upload + re-check), PlanOutline (per-section grounding), PlanChat, sufficiency gate, **DirectionCard** (two-level discover)
+- [x] tests/ (15 test files, 510 unit tests total)
 - [x] **tests/test_llm_pipeline.py** (5 LLM pipeline tests: discover, plan, write, review, full chain)
 - [x] **tests/test_citation_profile.py** (34 tests: profile loading, ReferenceType, DB, classification, balance)
 - [x] **tests/test_citation_phase10.py** (54 tests: Phase 10 citation features end-to-end)
 - [x] **tests/test_citation_manager.py** (83 tests: footnotes, block quotes, secondary citation, multilingual, verification, critic parsing)
 - [x] **tests/test_citation_verifier.py** (64 tests: parser, engine, annotator, report, pipeline)
 - [x] **tests/test_primary_text_detection.py** (36 tests: title extraction, Jaccard overlap, models, detection with mocked DB/VS, DB title search)
+- [x] **tests/test_problematique.py** (41 tests: P-ontology enums, models, DB annotations/directions/topics, annotation pipeline, clustering, generation, row converters, parse helpers)
 
 ## Phase 6 — Reference Acquisition Pipeline (COMPLETE)
 - [x] Paper model + DB: added `pdf_url` field, migration, `update_paper_pdf()`, `get_papers_needing_pdf()`
@@ -251,10 +252,98 @@
 - [x] All 469 unit tests pass, 0 failures, no regressions
 - [x] TypeScript compiles cleanly (`npx tsc --noEmit`)
 
+## Phase 14 — Discovery Refactor: Problématique Ontology (COMPLETE)
+
+Replaced STORM 4-perspective gap analysis with structured P-ontology annotation pipeline.
+
+### New Discovery Flow
+```
+Journal papers (with abstracts)
+    ↓
+Per-paper LLM annotation: P = ⟨T, M, S, G⟩
+    ↓
+Cluster annotations → 3-8 Problématique Directions
+    ↓
+Per-direction → 10 concrete research topics
+    ↓
+Frontend: two-level display (directions → topics)
+    ↓
+User selects topic → proceeds to References
+```
+
+### Data Models
+- [x] `AnnotationScale` enum (5 values: textual, perceptual, mediational, institutional, methodological)
+- [x] `AnnotationGap` enum (5 values: mediational_gap, temporal_flattening, method_naturalization, scale_mismatch, incommensurability_blindspot)
+- [x] `PaperAnnotation` model — P = ⟨T, M, S, G⟩ with tensions, mediators, scale, gap, evidence, deobjectification
+- [x] `ProblematiqueDirection` model — clustered direction with dominant T/M/S/G, paper_ids, topic_ids
+- [x] `TopicProposal.direction_id` — links topics to their parent direction
+
+### Database
+- [x] `paper_annotations` table (UNIQUE on paper_id, indexed)
+- [x] `problematique_directions` table
+- [x] Migration: `direction_id` column on `topic_proposals`
+- [x] 10 new DB methods: `insert_annotation`, `get_annotation`, `get_annotations`, `get_unannotated_papers`, `count_annotations`, `insert_direction`, `get_directions`, `get_direction`, `get_topics_by_direction`
+- [x] Row converters: `_row_to_annotation()`, `_row_to_direction()`
+- [x] Updated `insert_topic()` and `_row_to_topic()` for `direction_id`
+
+### Backend Pipeline (full rewrites)
+- [x] `gap_analyzer.py` — **replaced STORM multi-perspective** with 6-step P-ontology annotation prompt:
+  1. De-objectification, 2. Tensions (A ↔ B), 3. Mediators, 4. Scale (5 fixed), 5. Gap (5 fixed), 6. Evidence
+  - `annotate_paper()` — single paper annotation via LLM
+  - `annotate_corpus()` — batch annotation, skips existing, stores to DB
+- [x] `trend_tracker.py` — **replaced trend tracking** with direction clustering:
+  - `cluster_into_directions()` — LLM synthesizes annotations into 3-8 directions with shared T/M/S/G patterns
+  - Maps paper_indices to paper_ids
+- [x] `topic_scorer.py` — **replaced scoring** with topic generation:
+  - `generate_topics_for_direction()` — LLM proposes 10 concrete topics per direction
+  - Scores set to 0.0 (no separate scoring pass)
+
+### Orchestrator
+- [x] `WorkflowState.directions: list[dict]` field added
+- [x] `discover_node` rewritten: annotate_corpus → cluster_into_directions → generate_topics_for_direction (per direction)
+
+### API Endpoints (rewrite)
+- [x] `POST /discover` — background task: annotate → cluster → generate topics (progress: 0.1→0.6 annotating, 0.7 clustering, 0.8-0.95 generating)
+- [x] `GET /discover/status` — annotation/direction/topic counts
+- [x] `GET /directions` — list all directions
+- [x] `GET /directions/{id}` — single direction with its topics
+- [x] `GET /topics` — updated with optional `direction_id` query param
+
+### CLI
+- [x] `discover` command rewritten: `--annotate-only` flag, displays Rich table of directions (title, tensions, paper count, topic count)
+
+### Frontend
+- [x] `types.ts` — added `PaperAnnotation`, `ProblematiqueDirection`, `DirectionWithTopics`, `AnnotationStatus` interfaces; `direction_id` on `Topic`
+- [x] `api.ts` — `startDiscovery` (limit=200), `getAnnotationStatus`, `getDirections`, `getDirectionWithTopics`, `getTopics` with `directionId`
+- [x] `store.ts` — `selectedDirectionId` state + `selectDirection` action
+- [x] `TopicCard.tsx` — simplified: removed `ScoreBadge` and 4-score display
+- [x] `DirectionCard.tsx` — **new component**: collapsible card with P-ontology badges (tensions=blue, mediators=purple, scale=green, gap=amber), expands to show TopicCards
+- [x] `discover/page.tsx` — **rewritten**: annotation status bar, two-level hierarchy (DirectionCards → TopicCards), loads directions on mount
+
+### Tests
+- [x] `tests/test_problematique.py` — 41 new tests:
+  - **TestAnnotationScaleEnum** (2): all values, from_string
+  - **TestAnnotationGapEnum** (1): all values
+  - **TestPaperAnnotationModel** (2): defaults, full construction
+  - **TestProblematiqueDirectionModel** (2): defaults, full construction
+  - **TestTopicProposalDirectionId** (2): default None, set value
+  - **TestDBAnnotations** (6): insert/get, not found, list, count, unannotated, insert-or-replace
+  - **TestDBDirections** (3): insert/get, not found, list
+  - **TestDBTopicWithDirection** (2): insert with direction_id, get_topics_by_direction
+  - **TestAnnotatePaper** (4): valid JSON, empty abstract, invalid enum fallback, LLM failure
+  - **TestAnnotateCorpus** (2): batch annotation, skip already-annotated
+  - **TestClusterIntoDirections** (4): valid clustering, paper_indices mapping, empty annotations, out-of-range indices
+  - **TestGenerateTopics** (3): 10 topics generated, direction_id set, LLM failure
+  - **TestRowConverters** (2): annotation, direction
+  - **TestParseAnnotation** (6): valid JSON, invalid scale/gap fallback, no JSON, markdown fences, non-list fallback
+- [x] `tests/test_llm_pipeline.py` — `test_stage_discover()` updated: tests annotation → clustering → topic generation
+- [x] All 515 unit tests pass (41 new + 474 existing), 0 regressions
+- [x] TypeScript compiles cleanly (`npx tsc --noEmit`)
+
 ## Phase 9 — End-to-End LLM Pipeline Tests (COMPLETE)
 - [x] `pyproject.toml` — added `llm_pipeline` pytest marker
 - [x] `tests/test_llm_pipeline.py` — 5 test functions exercising real LLM calls:
-  - `test_stage_discover()` — STORM multi-perspective gap analysis + topic scoring (6 LLM calls)
+  - `test_stage_discover()` — P-ontology annotation + direction clustering + topic generation (N+2 LLM calls)
   - `test_stage_plan()` — thesis generation + reference selection + outline generation (3-8 LLM calls)
   - `test_stage_write()` — 2-section manuscript with Self-Refine + abstract (5-7 LLM calls)
   - `test_stage_review()` — Multi-Agent Debate with 3 reviewers + meta-reviewer (4 LLM calls)
@@ -296,7 +385,8 @@
 - `tests/test_citation_manager.py` — 83 tests (Phase 10.5: footnotes, block quotes, secondary citation, multilingual inline, extended format_citation, verify_all_citations, critic parsing, type grouping, bibliography formatting)
 - `tests/test_citation_verifier.py` — 64 tests (Phase 11: MLA parser, page range validation, annotation, report, engine verify, search methods, pipeline)
 - `tests/test_primary_text_detection.py` — 36 tests (Phase 12: title extraction, Jaccard overlap, models, detection with mocked DB/VS, DB title search)
-- **Total: 469 unit tests + 5 LLM pipeline tests, all passing (LLM tests skip without ZHIPUAI_API_KEY)**
+- `tests/test_problematique.py` — 41 tests (Phase 14: P-ontology enums, models, DB annotations/directions/topics, annotation pipeline, clustering, generation, row converters, parse helpers)
+- **Total: 510 unit tests + 5 LLM pipeline tests, all passing (LLM tests skip without ZHIPUAI_API_KEY)**
 
 ## Key Decisions
 - LiteLLM as unified LLM gateway (see decisions.md #001)
@@ -306,6 +396,7 @@
 - Human-in-the-loop for PDF acquisition (most publishers block direct download)
 - Multi-source OA resolution before human fallback (Unpaywall → CORE → arXiv → Europe PMC → DOI negotiation)
 - Institutional proxy as fallback after OA resolution, before human wishlist
+- **P-ontology annotation** replaces STORM multi-perspective for discovery (structured P = ⟨T, M, S, G⟩ per paper → direction clustering → topic generation)
 
 ## CLI Commands Available
 - `ai-researcher monitor` - Scan journals for new papers
@@ -317,7 +408,7 @@
 - `ai-researcher **config-proxy**` - Configure institutional proxy (one-time setup)
 - `ai-researcher **proxy-download** [--limit N] [--dry-run]` - Download paywalled PDFs via proxy
 - `ai-researcher **wishlist**` - Show papers still needing PDFs + corpus principal report
-- `ai-researcher discover` - Find research gaps
+- `ai-researcher discover [--annotate-only] [--limit N]` - P-ontology annotation + direction clustering + topic generation
 - `ai-researcher plan <topic_id> --journal <name>` - Create research plan + detect missing primary texts
 - `ai-researcher write <plan_id>` - Generate manuscript
 - `ai-researcher verify <ms_id>` - Verify references
@@ -350,6 +441,24 @@ resolve-oa [--limit N] → 批量OA解析 → 自动下载+索引 → 减少wish
 config-proxy → 配置EZproxy(一次性) → 保存config/proxy.yaml
 proxy-download [--limit N] → DOI→出版商URL→代理重写→下载+索引 → 减少wishlist
 ```
+
+## Discovery Flow (P-ontology)
+```
+Papers (with abstracts) → Per-paper LLM annotation P = ⟨T, M, S, G⟩
+    ↓
+Annotations stored in paper_annotations table (skips already-annotated)
+    ↓
+LLM clusters annotations → 3-8 ProblematiqueDirection objects
+    ↓
+Per direction → LLM generates 10 TopicProposal objects (direction_id set)
+    ↓
+Frontend: DirectionCard (collapsible, P-badges) → TopicCard list
+    ↓
+User selects topic → proceeds to References
+```
+- `--annotate-only` flag: only run annotation step, skip clustering/generation
+- Annotations are cached per paper_id (idempotent re-runs)
+- API endpoint `GET /discover/status` shows annotation/direction/topic counts
 
 ## Notes for Next Session
 - CNKI source is a stub (needs institutional API access)

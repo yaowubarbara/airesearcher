@@ -117,47 +117,67 @@ def index(pdf_path: str, paper_id: str | None) -> None:
 
 
 @main.command()
-@click.option("--limit", default=5, help="Number of topics to generate")
-def discover(limit: int) -> None:
-    """Discover research gaps and propose topics."""
-    from src.topic_discovery.gap_analyzer import analyze_gaps
-    from src.topic_discovery.topic_scorer import score_topic
+@click.option("--limit", default=200, help="Max papers to annotate")
+@click.option("--annotate-only", is_flag=True, help="Only annotate, skip clustering and topic generation")
+def discover(limit: int, annotate_only: bool) -> None:
+    """Discover research gaps via P-ontology annotation + direction clustering."""
+    from src.topic_discovery.gap_analyzer import annotate_corpus
+    from src.topic_discovery.trend_tracker import cluster_into_directions
+    from src.topic_discovery.topic_scorer import generate_topics_for_direction
 
     async def _run():
         db = get_db()
         router = get_router(db)
         try:
-            papers = db.search_papers(limit=200)
+            papers = db.search_papers(limit=limit)
             if not papers:
                 console.print("[yellow]No papers in database. Run 'monitor' first.[/yellow]")
                 return
 
-            console.print(f"Analyzing {len(papers)} papers for research gaps...")
-            gaps = await analyze_gaps(papers, router)
+            console.print(f"Annotating {len(papers)} papers with P-ontology...")
+            annotations = await annotate_corpus(papers, router, db)
+            console.print(f"[green]{len(annotations)} annotations total[/green]")
 
-            table = Table(title="Research Gap Proposals")
-            table.add_column("#", width=3)
-            table.add_column("Title")
-            table.add_column("Score", width=6)
-            table.add_column("Research Question")
+            if annotate_only:
+                return
 
-            from src.knowledge_base.models import TopicProposal
-            for i, gap in enumerate(gaps[:limit]):
-                topic = TopicProposal(
-                    title=gap.get("title", "Untitled"),
-                    research_question=gap.get("potential_rq", ""),
-                    gap_description=gap.get("description", ""),
+            console.print("\nClustering into problématique directions...")
+            directions = await cluster_into_directions(annotations, papers, router)
+
+            dir_table = Table(title="Problématique Directions")
+            dir_table.add_column("#", width=3)
+            dir_table.add_column("Direction", max_width=40)
+            dir_table.add_column("Tensions", max_width=30)
+            dir_table.add_column("Papers", width=7)
+            dir_table.add_column("Topics", width=7)
+
+            for i, direction in enumerate(directions):
+                dir_id = db.insert_direction(direction)
+                direction.id = dir_id
+
+                console.print(f"\nGenerating topics for: [bold]{direction.title}[/bold]")
+                topics = await generate_topics_for_direction(
+                    direction, papers, annotations, router
                 )
-                scored = score_topic(topic, papers, router)
-                db.insert_topic(scored)
-                table.add_row(
+                topic_ids = []
+                for topic in topics:
+                    topic.direction_id = dir_id
+                    tid = db.insert_topic(topic)
+                    topic_ids.append(tid)
+                direction.topic_ids = topic_ids
+                db.insert_direction(direction)
+
+                tensions_str = "; ".join(direction.dominant_tensions[:2]) if direction.dominant_tensions else "-"
+                dir_table.add_row(
                     str(i + 1),
-                    scored.title[:50],
-                    f"{scored.overall_score:.2f}",
-                    scored.research_question[:80],
+                    direction.title[:40],
+                    tensions_str[:30],
+                    str(len(direction.paper_ids)),
+                    str(len(topics)),
                 )
 
-            console.print(table)
+            console.print()
+            console.print(dir_table)
         finally:
             db.close()
 

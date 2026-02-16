@@ -1,140 +1,96 @@
-"""STORM multi-perspective questioning for research gap discovery.
+"""Per-paper P-ontology annotation for research gap discovery.
 
-Implements the STORM pattern: multiple perspective agents interrogate a corpus
-of papers from different disciplinary angles, generating questions that expose
-under-explored areas and cross-language blind spots.
+Annotates each paper with P = <T, M, S, G> (Tension, Mediator, Scale, Gap)
+using a structured 6-step LLM process.  Replaces the earlier STORM
+multi-perspective approach.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import Any, Optional
 
-from src.knowledge_base.models import Paper
+from src.knowledge_base.db import Database
+from src.knowledge_base.models import (
+    AnnotationGap,
+    AnnotationScale,
+    Paper,
+    PaperAnnotation,
+)
 from src.llm.router import LLMRouter
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Perspective agent definitions
+# Prompt
 # ---------------------------------------------------------------------------
 
-PERSPECTIVE_AGENTS: list[dict[str, str]] = [
-    {
-        "name": "Comparatist",
-        "system_prompt": (
-            "You are a specialist in world literature and translation studies. "
-            "You approach every corpus by asking: What gets lost or distorted when "
-            "literary works cross linguistic and cultural boundaries? How do "
-            "translation practices, publishing markets, and academic institutions "
-            "shape which works circulate and how they are read? You are especially "
-            "attentive to power asymmetries between literary traditions and to "
-            "methodological assumptions that privilege one national canon over others."
-        ),
-    },
-    {
-        "name": "Chinese Literature Specialist",
-        "system_prompt": (
-            "You are a specialist in Chinese literature from classical to "
-            "contemporary periods. You read primary texts in Chinese and are deeply "
-            "familiar with Chinese-language scholarship (published in journals such "
-            "as Wenxue Pinglun, Zhongguo Bijiao Wenxue, and Wenyi Yanjiu). You "
-            "notice when Western-language scholarship overlooks debates that are "
-            "well-established in Chinese academia, and you flag topics where Chinese "
-            "critical frameworks diverge from Euro-American ones."
-        ),
-    },
-    {
-        "name": "French Literature Specialist",
-        "system_prompt": (
-            "You are a specialist in French and Francophone literature. You read "
-            "primary texts in French and follow French-language scholarship in "
-            "journals such as Revue de Litterature Comparee, Poetique, and "
-            "Litteratures. You are alert to the distinctive traditions of French "
-            "literary theory (narratology, genetique des textes, sociocritique) and "
-            "notice when Anglophone scholarship reinvents concepts already developed "
-            "in French-language criticism, or ignores Francophone perspectives."
-        ),
-    },
-    {
-        "name": "Methodology Critic",
-        "system_prompt": (
-            "You are a methodological critic who evaluates the rigor and innovation "
-            "of research designs in literary studies. You scrutinize how scholars "
-            "build arguments, select evidence, and position themselves relative to "
-            "existing theory. You ask whether digital humanities methods, "
-            "quantitative approaches, or interdisciplinary frameworks could open up "
-            "new lines of inquiry. You are skeptical of purely impressionistic "
-            "readings and push for reproducible, well-grounded analysis."
-        ),
-    },
-]
+_ANNOTATION_PROMPT = """\
+You are a senior comparatist performing a structured problématique annotation \
+on a scholarly paper.  Follow these six steps IN ORDER:
 
-# ---------------------------------------------------------------------------
-# Prompt templates
-# ---------------------------------------------------------------------------
+1. **De-objectification**: If we swapped the text object studied in this paper \
+for a completely different text, what underlying *problem* would remain?  \
+State the problem in one sentence.
 
-_QUESTION_PROMPT = """\
-You are reviewing the following corpus of {count} scholarly papers in comparative \
-literature. Each paper is listed with its title, authors, journal, year, language, \
-and keywords.
+2. **Tensions (T)**: Extract 1–2 core intellectual tensions from the paper.  \
+Format each as "A ↔ B" (max 7 words per side).  \
+A tension is NOT a topic; it is a pair of forces, frameworks, or demands \
+pulling in opposite directions.
 
---- CORPUS ---
-{corpus_summary}
---- END CORPUS ---
+3. **Mediators (M)**: Identify 1–2 operative mechanisms or conceptual mediators \
+that the paper uses (or fails to use) to traverse the tension.  \
+A mediator is NOT a theme; it is a concrete operation or device (e.g. \
+"close-reading of rhythm", "translation as cultural transfer", \
+"institutional gatekeeping").
 
-From your perspective as a {perspective_name}, generate 5 to 8 probing questions \
-that identify potential research gaps, under-explored connections, or methodological \
-blind spots in this corpus. Focus on what is MISSING or insufficiently addressed.
+4. **Scale (S)**: Determine the dominant scale at which the paper's \
+problematic operates.  Choose exactly ONE from this fixed list:
+   - textual (formal, stylistic, close-reading)
+   - perceptual (affect, reception, reader response)
+   - mediational (translation, circulation, transfer)
+   - institutional (publishing, canon formation, academia)
+   - methodological (method itself is the object of inquiry)
 
-Return your questions as a JSON array of strings. Output ONLY the JSON array, no \
-other text.
-"""
+5. **Gap (G)**: Determine the principal gap exposed (or left unnoticed) by \
+the paper.  Choose exactly ONE from this fixed list:
+   - mediational_gap (no mechanism connects the two sides of the tension)
+   - temporal_flattening (historical depth is collapsed)
+   - method_naturalization (method is assumed, never examined)
+   - scale_mismatch (argument operates at wrong scale for its claims)
+   - incommensurability_blindspot (untranslatable difference is ignored)
 
-_SYNTHESIS_PROMPT = """\
-You are a senior comparatist synthesizing research gap analyses from multiple \
-disciplinary perspectives. Below are sets of probing questions generated by four \
-different perspective agents examining the same corpus of papers.
+6. **Evidence**: Quote or closely paraphrase ONE sentence from the abstract \
+that best supports your annotation.
 
-{perspective_questions}
+--- PAPER ---
+Title: {title}
+Authors: {authors}
+Journal: {journal} ({year})
+Abstract: {abstract}
+---
 
-Synthesize these questions into a structured list of concrete research gaps. For \
-each gap, provide:
-- "title": a concise label (max 15 words)
-- "description": a 2-3 sentence explanation of the gap
-- "evidence": what in the corpus (or absent from it) suggests this gap exists
-- "perspectives": which perspective agents flagged related questions
-- "potential_rq": a draft research question that could address this gap
+Return a JSON object with exactly these keys:
+  "deobjectification": string (step 1, one sentence),
+  "tensions": [string, ...] (step 2, 1-2 items, format "A ↔ B"),
+  "mediators": [string, ...] (step 3, 1-2 items),
+  "scale": string (step 4, one of the five options),
+  "gap": string (step 5, one of the five options),
+  "evidence": string (step 6, one sentence)
 
-Return your answer as a JSON array of objects with exactly these five keys. \
-Output ONLY the JSON array, no other text.
+Output ONLY the JSON object, no other text.
 """
 
 
 # ---------------------------------------------------------------------------
-# Helper utilities
+# Helpers
 # ---------------------------------------------------------------------------
-
-
-def _build_corpus_summary(papers: list[Paper], max_papers: int = 80) -> str:
-    """Create a compact textual summary of the paper corpus for LLM context."""
-    lines: list[str] = []
-    for p in papers[:max_papers]:
-        kw = ", ".join(p.keywords) if p.keywords else "none"
-        lines.append(
-            f"- [{p.language.value.upper()}] {p.title} | "
-            f"{', '.join(p.authors[:3])} | {p.journal} ({p.year}) | kw: {kw}"
-        )
-    if len(papers) > max_papers:
-        lines.append(f"... and {len(papers) - max_papers} more papers")
-    return "\n".join(lines)
 
 
 def _parse_json_array(text: str) -> list[Any]:
     """Robustly extract a JSON array from LLM output."""
     text = text.strip()
-    # Find the first '[' and last ']' to handle preamble/postamble
     start = text.find("[")
     end = text.rfind("]")
     if start == -1 or end == -1:
@@ -147,94 +103,83 @@ def _parse_json_array(text: str) -> list[Any]:
         return []
 
 
+def _parse_json_object(text: str) -> dict:
+    """Robustly extract a JSON object from LLM output."""
+    text = text.strip()
+    # Strip markdown fences
+    if text.startswith("```"):
+        lines = text.split("\n")
+        lines = [l for l in lines if not l.strip().startswith("```")]
+        text = "\n".join(lines)
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1:
+        return {}
+    try:
+        return json.loads(text[start : end + 1])
+    except json.JSONDecodeError:
+        return {}
+
+
+_VALID_SCALES = {s.value for s in AnnotationScale}
+_VALID_GAPS = {g.value for g in AnnotationGap}
+
+
+def _parse_annotation(raw_text: str) -> dict:
+    """Parse LLM annotation output into a validated dict."""
+    parsed = _parse_json_object(raw_text)
+    if not parsed:
+        return {}
+
+    # Validate and normalise enums
+    scale = parsed.get("scale", "textual")
+    if scale not in _VALID_SCALES:
+        scale = "textual"
+    parsed["scale"] = scale
+
+    gap = parsed.get("gap", "mediational_gap")
+    if gap not in _VALID_GAPS:
+        gap = "mediational_gap"
+    parsed["gap"] = gap
+
+    # Ensure list fields
+    if not isinstance(parsed.get("tensions"), list):
+        parsed["tensions"] = []
+    if not isinstance(parsed.get("mediators"), list):
+        parsed["mediators"] = []
+
+    # Ensure string fields
+    for key in ("evidence", "deobjectification"):
+        if not isinstance(parsed.get(key), str):
+            parsed[key] = ""
+
+    return parsed
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
 
-async def analyze_gaps(
-    papers: list[Paper],
+async def annotate_paper(
+    paper: Paper,
     llm_router: LLMRouter,
-) -> list[dict]:
-    """Run STORM multi-perspective questioning to discover research gaps.
+) -> Optional[PaperAnnotation]:
+    """Annotate a single paper with P = <T, M, S, G>.
 
-    Each of the four perspective agents generates probing questions about the
-    corpus.  A synthesis step then merges the questions into structured gap
-    descriptions.
-
-    Parameters
-    ----------
-    papers:
-        The corpus of papers to analyze.
-    llm_router:
-        LLM router instance (uses task_type="topic_discovery").
-
-    Returns
-    -------
-    list[dict]
-        Each dict has keys: title, description, evidence, perspectives,
-        potential_rq.
+    Returns None if the paper has no abstract or the LLM call fails.
     """
-    if not papers:
-        logger.warning("analyze_gaps called with empty paper list")
-        return []
+    if not paper.abstract or not paper.abstract.strip():
+        return None
 
-    corpus_summary = _build_corpus_summary(papers)
-
-    # --- Phase 1: Each perspective agent generates questions ----------------
-    perspective_results: dict[str, list[str]] = {}
-
-    for agent in PERSPECTIVE_AGENTS:
-        user_prompt = _QUESTION_PROMPT.format(
-            count=len(papers),
-            corpus_summary=corpus_summary,
-            perspective_name=agent["name"],
-        )
-        messages = [
-            {"role": "system", "content": agent["system_prompt"]},
-            {"role": "user", "content": user_prompt},
-        ]
-
-        try:
-            response = llm_router.complete(
-                task_type="topic_discovery",
-                messages=messages,
-                temperature=0.7,
-            )
-            raw_text = llm_router.get_response_text(response)
-            questions = _parse_json_array(raw_text)
-            if questions:
-                perspective_results[agent["name"]] = [
-                    str(q) for q in questions
-                ]
-                logger.info(
-                    "Perspective '%s' generated %d questions",
-                    agent["name"],
-                    len(questions),
-                )
-            else:
-                logger.warning(
-                    "Perspective '%s' returned no parseable questions",
-                    agent["name"],
-                )
-        except Exception:
-            logger.exception(
-                "LLM call failed for perspective '%s'", agent["name"]
-            )
-
-    if not perspective_results:
-        logger.error("All perspective agents failed; no gaps to synthesize")
-        return []
-
-    # --- Phase 2: Synthesize into structured gaps --------------------------
-    formatted_perspectives: list[str] = []
-    for name, questions in perspective_results.items():
-        q_list = "\n".join(f"  {i + 1}. {q}" for i, q in enumerate(questions))
-        formatted_perspectives.append(f"### {name}\n{q_list}")
-
-    synthesis_prompt = _SYNTHESIS_PROMPT.format(
-        perspective_questions="\n\n".join(formatted_perspectives)
+    user_prompt = _ANNOTATION_PROMPT.format(
+        title=paper.title,
+        authors=", ".join(paper.authors[:5]) if paper.authors else "Unknown",
+        journal=paper.journal,
+        year=paper.year,
+        abstract=paper.abstract[:2000],
     )
+
     messages = [
         {
             "role": "system",
@@ -243,7 +188,7 @@ async def analyze_gaps(
                 "Return well-structured JSON only."
             ),
         },
-        {"role": "user", "content": synthesis_prompt},
+        {"role": "user", "content": user_prompt},
     ]
 
     try:
@@ -253,19 +198,82 @@ async def analyze_gaps(
             temperature=0.3,
         )
         raw_text = llm_router.get_response_text(response)
-        gaps = _parse_json_array(raw_text)
+        parsed = _parse_annotation(raw_text)
+        if not parsed:
+            logger.warning("Failed to parse annotation for paper '%s'", paper.title)
+            return None
+
+        return PaperAnnotation(
+            paper_id=paper.id or "",
+            tensions=parsed["tensions"],
+            mediators=parsed["mediators"],
+            scale=AnnotationScale(parsed["scale"]),
+            gap=AnnotationGap(parsed["gap"]),
+            evidence=parsed["evidence"],
+            deobjectification=parsed["deobjectification"],
+        )
     except Exception:
-        logger.exception("Synthesis LLM call failed")
-        gaps = []
+        logger.exception("LLM annotation failed for paper '%s'", paper.title)
+        return None
 
-    # Validate structure of each gap dict
-    required_keys = {"title", "description", "evidence", "perspectives", "potential_rq"}
-    validated: list[dict] = []
-    for gap in gaps:
-        if isinstance(gap, dict) and required_keys.issubset(gap.keys()):
-            validated.append(gap)
+
+async def annotate_corpus(
+    papers: list[Paper],
+    llm_router: LLMRouter,
+    db: Database,
+) -> list[PaperAnnotation]:
+    """Annotate all papers that have abstracts but lack annotations.
+
+    Skips already-annotated papers.  Stores each new annotation in DB.
+    Returns all annotations (existing + new).
+    """
+    if not papers:
+        return []
+
+    # Collect existing annotations
+    all_annotations: list[PaperAnnotation] = []
+    to_annotate: list[Paper] = []
+
+    for paper in papers:
+        if not paper.abstract or not paper.abstract.strip():
+            continue
+        existing = db.get_annotation(paper.id or "")
+        if existing:
+            all_annotations.append(existing)
         else:
-            logger.warning("Dropping malformed gap entry: %s", gap)
+            to_annotate.append(paper)
 
-    logger.info("Gap analysis complete: %d gaps identified", len(validated))
-    return validated
+    logger.info(
+        "Annotation corpus: %d papers with abstracts, %d already annotated, %d to annotate",
+        len(all_annotations) + len(to_annotate),
+        len(all_annotations),
+        len(to_annotate),
+    )
+
+    # Annotate sequentially to respect rate limits
+    for i, paper in enumerate(to_annotate):
+        ann = await annotate_paper(paper, llm_router)
+        if ann:
+            ann_id = db.insert_annotation(ann)
+            ann.id = ann_id
+            all_annotations.append(ann)
+            logger.info(
+                "Annotated [%d/%d] '%s': T=%s M=%s S=%s G=%s",
+                i + 1,
+                len(to_annotate),
+                paper.title[:50],
+                ann.tensions,
+                ann.mediators,
+                ann.scale.value,
+                ann.gap.value,
+            )
+        else:
+            logger.warning(
+                "Skipped [%d/%d] '%s' (no annotation returned)",
+                i + 1,
+                len(to_annotate),
+                paper.title[:50],
+            )
+
+    logger.info("Annotation complete: %d total annotations", len(all_annotations))
+    return all_annotations

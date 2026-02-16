@@ -4,9 +4,14 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { usePipelineStore } from '@/lib/store';
-import TopicCard from '@/components/TopicCard';
+import DirectionCard from '@/components/DirectionCard';
 import TaskProgress from '@/components/TaskProgress';
-import type { Topic } from '@/lib/types';
+import type { ProblematiqueDirection, Topic, AnnotationStatus, DirectionWithTopics } from '@/lib/types';
+
+interface DirectionState {
+  direction: ProblematiqueDirection;
+  topics: Topic[];
+}
 
 export default function DiscoverPage() {
   const router = useRouter();
@@ -15,15 +20,43 @@ export default function DiscoverPage() {
     activeTaskId, setActiveTaskId, setStage, completeStage,
   } = usePipelineStore();
 
-  const [topics, setTopics] = useState<Topic[]>([]);
+  const [directions, setDirections] = useState<DirectionState[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [annotationStatus, setAnnotationStatus] = useState<AnnotationStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Load existing directions on mount
   useEffect(() => {
     setStage('discover');
-    api.getTopics(undefined, 50)
-      .then((data) => setTopics(data.topics))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+
+    const loadDirections = async () => {
+      try {
+        const [dirRes, statusRes] = await Promise.all([
+          api.getDirections(20),
+          api.getAnnotationStatus(),
+        ]);
+        setAnnotationStatus(statusRes);
+
+        // Fetch topics for each direction
+        const withTopics: DirectionState[] = await Promise.all(
+          dirRes.directions.map(async (d) => {
+            try {
+              const dt = await api.getDirectionWithTopics(d.id);
+              return { direction: dt.direction, topics: dt.topics };
+            } catch {
+              return { direction: d, topics: [] };
+            }
+          })
+        );
+        setDirections(withTopics);
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDirections();
   }, [setStage]);
 
   const startDiscovery = async () => {
@@ -36,16 +69,33 @@ export default function DiscoverPage() {
     }
   };
 
-  const handleDiscoveryComplete = useCallback((result: any) => {
+  const handleDiscoveryComplete = useCallback(async (result: any) => {
     setActiveTaskId(null);
-    if (Array.isArray(result)) {
-      setTopics(prev => {
-        const existingIds = new Set(prev.map(t => t.id));
-        const newTopics = result.filter((t: Topic) => !existingIds.has(t.id));
-        return [...newTopics, ...prev];
-      });
+    // Reload directions from API
+    try {
+      const dirRes = await api.getDirections(20);
+      const statusRes = await api.getAnnotationStatus();
+      setAnnotationStatus(statusRes);
+
+      const withTopics: DirectionState[] = await Promise.all(
+        dirRes.directions.map(async (d) => {
+          try {
+            const dt = await api.getDirectionWithTopics(d.id);
+            return { direction: dt.direction, topics: dt.topics };
+          } catch {
+            return { direction: d, topics: [] };
+          }
+        })
+      );
+      setDirections(withTopics);
+    } catch {
+      // ignore
     }
   }, [setActiveTaskId]);
+
+  const handleToggleDirection = (id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
 
   const handleTopicSelect = (id: string) => {
     selectTopic(id);
@@ -64,7 +114,8 @@ export default function DiscoverPage() {
         <div>
           <h2 className="text-xl font-bold text-text-primary">Topic Discovery</h2>
           <p className="text-sm text-text-secondary mt-1">
-            Discover research gaps and select a topic for {selectedJournal || 'your target journal'}.
+            Annotate papers, discover research directions, and select a topic for{' '}
+            {selectedJournal || 'your target journal'}.
           </p>
         </div>
         <button
@@ -76,28 +127,46 @@ export default function DiscoverPage() {
         </button>
       </div>
 
+      {/* Annotation status bar */}
+      {annotationStatus && (
+        <div className="flex items-center gap-4 text-xs text-text-muted bg-slate-800/50 rounded-lg px-4 py-2.5">
+          <span>{annotationStatus.annotated} annotated</span>
+          <span className="text-slate-600">|</span>
+          <span>{annotationStatus.papers_with_abstract} with abstracts</span>
+          <span className="text-slate-600">|</span>
+          <span>{annotationStatus.directions} directions</span>
+          <span className="text-slate-600">|</span>
+          <span>{annotationStatus.topics} topics</span>
+        </div>
+      )}
+
       <TaskProgress
         taskId={activeTaskId}
         onComplete={handleDiscoveryComplete}
-        label="Discovering research gaps..."
+        label="Running P-ontology discovery..."
       />
 
       {loading ? (
         <div className="flex justify-center py-10">
           <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : topics.length === 0 ? (
+      ) : directions.length === 0 ? (
         <div className="text-center py-10">
-          <p className="text-text-secondary">No topics yet. Click "Run Discovery" to find research gaps.</p>
+          <p className="text-text-secondary">
+            No directions yet. Click &quot;Run Discovery&quot; to annotate papers and find research directions.
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {topics.map((topic) => (
-            <TopicCard
-              key={topic.id}
-              topic={topic}
-              onSelect={handleTopicSelect}
-              selected={topic.id === selectedTopicId}
+          {directions.map(({ direction, topics }) => (
+            <DirectionCard
+              key={direction.id}
+              direction={direction}
+              topics={topics}
+              expanded={expandedId === direction.id}
+              onToggle={() => handleToggleDirection(direction.id)}
+              selectedTopicId={selectedTopicId}
+              onSelectTopic={handleTopicSelect}
             />
           ))}
         </div>
