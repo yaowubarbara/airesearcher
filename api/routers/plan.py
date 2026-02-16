@@ -1,4 +1,5 @@
 """Research plan endpoints."""
+import asyncio
 import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -12,6 +13,9 @@ class PlanRequest(BaseModel):
     topic_id: str
     journal: str
     language: str = "en"
+    edited_title: Optional[str] = None
+    edited_research_question: Optional[str] = None
+    edited_gap_description: Optional[str] = None
 
 
 class PlanFromSessionRequest(BaseModel):
@@ -19,11 +23,29 @@ class PlanFromSessionRequest(BaseModel):
     journal: str
     language: str = "en"
     reference_ids: Optional[list[str]] = None
+    edited_title: Optional[str] = None
+    edited_research_question: Optional[str] = None
+    edited_gap_description: Optional[str] = None
 
 
 class RefineRequest(BaseModel):
     feedback: str
     conversation_history: list[dict] = []
+
+
+class PlanFromUploadsRequest(BaseModel):
+    journal: str
+    language: str = "en"
+    paper_ids: list[str]
+    edited_title: Optional[str] = None
+    edited_research_question: Optional[str] = None
+    edited_gap_description: Optional[str] = None
+
+
+class SynthesizeTopicRequest(BaseModel):
+    session_id: Optional[str] = None
+    paper_ids: Optional[list[str]] = None
+    hint: Optional[str] = None
 
 
 class ReadinessCheckRequest(BaseModel):
@@ -56,6 +78,14 @@ async def create_plan(req: PlanRequest, db=Depends(get_db), vs=Depends(get_vs), 
                 break
         if not topic:
             raise ValueError(f"Topic {req.topic_id} not found")
+
+        # Apply user edits to the topic before plan generation
+        if req.edited_title is not None:
+            topic.title = req.edited_title
+        if req.edited_research_question is not None:
+            topic.research_question = req.edited_research_question
+        if req.edited_gap_description is not None:
+            topic.gap_description = req.edited_gap_description
 
         await task_mgr.update_progress(task_id, 0.2, "Creating research plan...")
         planner = ResearchPlanner(db=db, vector_store=vs, llm_router=llm)
@@ -101,22 +131,35 @@ async def create_plan_from_session(req: PlanFromSessionRequest, db=Depends(get_d
         PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
         if str(PROJECT_ROOT) not in sys.path:
             sys.path.insert(0, str(PROJECT_ROOT))
-        from src.research_planner.planner import ResearchPlanner, detect_missing_primary_texts
-        from src.knowledge_base.models import Language, TopicProposal
+        from src.research_planner.planner import ResearchPlanner, detect_missing_primary_texts, synthesize_topic_from_papers
+        from src.knowledge_base.models import Language
 
-        await task_mgr.update_progress(task_id, 0.1, "Creating topic from search session...")
+        await task_mgr.update_progress(task_id, 0.1, "Preparing topic...")
 
-        # Synthesize a TopicProposal from the session query
-        topic = TopicProposal(
-            id=str(uuid.uuid4()),
-            title=session["query"],
-            research_question=f"Research based on: {session['query']}",
-            gap_description=f"Search session with {len(session['paper_ids'])} papers found",
-            evidence_paper_ids=session["paper_ids"][:20],
-            target_journals=[req.journal],
-            overall_score=0.5,
-            status="approved",
-        )
+        source_ids = req.reference_ids or session["paper_ids"]
+
+        # If user provided edited fields, construct topic directly (skip re-synthesis)
+        if req.edited_title is not None:
+            from src.knowledge_base.models import TopicProposal
+            topic = TopicProposal(
+                id=str(uuid.uuid4()),
+                title=req.edited_title,
+                research_question=req.edited_research_question or "",
+                gap_description=req.edited_gap_description or "",
+                evidence_paper_ids=source_ids[:20],
+                overall_score=0.5,
+                status="approved",
+            )
+        else:
+            # Use LLM to synthesize a real TopicProposal from session papers
+            topic = await asyncio.to_thread(
+                synthesize_topic_from_papers,
+                source_ids,
+                db,
+                llm,
+                hint=session["query"],
+            )
+        topic.target_journals = [req.journal]
         db.insert_topic(topic)
 
         await task_mgr.update_progress(task_id, 0.2, "Creating research plan...")
@@ -139,6 +182,136 @@ async def create_plan_from_session(req: PlanFromSessionRequest, db=Depends(get_d
         return result
 
     task_id = tm.create_task("plan_from_session", run_plan)
+    return {"task_id": task_id}
+
+
+@router.post("/plan/from-uploads")
+async def create_plan_from_uploads(req: PlanFromUploadsRequest, db=Depends(get_db), vs=Depends(get_vs), llm=Depends(get_router), tm=Depends(get_task_manager)):
+    from api.routers.journals import ACTIVE_JOURNALS
+    if req.journal not in ACTIVE_JOURNALS:
+        raise HTTPException(400, "Journal not active")
+    if not req.paper_ids:
+        raise HTTPException(400, "At least one paper_id is required")
+
+    async def run_plan(task_mgr, task_id):
+        import sys
+        from pathlib import Path
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+        if str(PROJECT_ROOT) not in sys.path:
+            sys.path.insert(0, str(PROJECT_ROOT))
+        from src.research_planner.planner import ResearchPlanner, detect_missing_primary_texts, synthesize_topic_from_papers
+        from src.knowledge_base.models import Language
+
+        await task_mgr.update_progress(task_id, 0.1, "Preparing topic...")
+
+        # If user provided edited fields, construct topic directly (skip re-synthesis)
+        if req.edited_title is not None:
+            from src.knowledge_base.models import TopicProposal
+            topic = TopicProposal(
+                id=str(uuid.uuid4()),
+                title=req.edited_title,
+                research_question=req.edited_research_question or "",
+                gap_description=req.edited_gap_description or "",
+                evidence_paper_ids=req.paper_ids[:20],
+                overall_score=0.5,
+                status="approved",
+            )
+        else:
+            # LLM-powered topic synthesis from the uploaded corpus
+            topic = await asyncio.to_thread(
+                synthesize_topic_from_papers,
+                req.paper_ids,
+                db,
+                llm,
+            )
+        topic.target_journals = [req.journal]
+        db.insert_topic(topic)
+
+        # Create a tracking session for these uploads
+        session_id = str(uuid.uuid4())
+        db.insert_search_session(
+            session_id=session_id,
+            query=f"[corpus] {topic.title}",
+            paper_ids=req.paper_ids,
+            found=len(req.paper_ids),
+            indexed=len(req.paper_ids),
+        )
+
+        await task_mgr.update_progress(task_id, 0.3, "Creating research plan...")
+        planner = ResearchPlanner(db=db, vector_store=vs, llm_router=llm)
+        lang = Language(req.language) if req.language in ("en", "zh", "fr") else Language.EN
+        plan = await planner.create_plan(
+            topic=topic,
+            target_journal=req.journal,
+            language=lang,
+            skip_acquisition=True,
+            selected_paper_ids=req.paper_ids,
+        )
+
+        await task_mgr.update_progress(task_id, 0.8, "Detecting missing primary texts...")
+        primary_report = detect_missing_primary_texts(plan, db, vs)
+
+        await task_mgr.update_progress(task_id, 1.0, "Plan complete")
+        result = plan.model_dump()
+        result["primary_text_report"] = primary_report.model_dump()
+        result["synthesized_topic"] = {
+            "title": topic.title,
+            "research_question": topic.research_question,
+            "gap_description": topic.gap_description,
+        }
+        return result
+
+    task_id = tm.create_task("plan_from_uploads", run_plan)
+    return {"task_id": task_id}
+
+
+@router.post("/plan/synthesize-topic")
+async def synthesize_topic(req: SynthesizeTopicRequest, db=Depends(get_db), llm=Depends(get_router), tm=Depends(get_task_manager)):
+    """Synthesize a topic from papers without creating a plan. Returns title/research_question/gap_description."""
+    if not req.session_id and not req.paper_ids:
+        raise HTTPException(400, "Either session_id or paper_ids is required")
+
+    # Resolve paper_ids from session if needed
+    hint = req.hint or ""
+    if req.session_id:
+        sessions = db.get_search_sessions()
+        session = None
+        for s in sessions:
+            if s["id"] == req.session_id:
+                session = s
+                break
+        if not session:
+            raise HTTPException(404, "Search session not found")
+        paper_ids = req.paper_ids or session["paper_ids"]
+        hint = hint or session["query"]
+    else:
+        paper_ids = req.paper_ids
+
+    async def run_synthesize(task_mgr, task_id):
+        import sys
+        from pathlib import Path
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+        if str(PROJECT_ROOT) not in sys.path:
+            sys.path.insert(0, str(PROJECT_ROOT))
+        from src.research_planner.planner import synthesize_topic_from_papers
+
+        await task_mgr.update_progress(task_id, 0.2, "Synthesizing topic...")
+        topic = await asyncio.to_thread(
+            synthesize_topic_from_papers,
+            paper_ids,
+            db,
+            llm,
+            hint=hint,
+        )
+        await task_mgr.update_progress(task_id, 1.0, "Topic synthesized")
+        return {
+            "title": topic.title,
+            "research_question": topic.research_question,
+            "gap_description": topic.gap_description,
+            "source_paper_ids": topic.evidence_paper_ids or paper_ids[:20],
+        }
+
+    task_id = tm.create_task("synthesize_topic", run_synthesize)
     return {"task_id": task_id}
 
 

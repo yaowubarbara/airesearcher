@@ -78,15 +78,46 @@ export const api = {
     }),
 
   // Plan
-  createPlan: (topicId: string, journal: string, language = 'en') =>
+  synthesizeTopic: (params: { session_id?: string; paper_ids?: string[]; hint?: string }) =>
+    request<{ task_id: string }>('/plan/synthesize-topic', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+  createPlan: (topicId: string, journal: string, language = 'en', editedTopic?: { title: string; research_question: string; gap_description: string }) =>
     request<{ task_id: string }>('/plan', {
       method: 'POST',
-      body: JSON.stringify({ topic_id: topicId, journal, language }),
+      body: JSON.stringify({
+        topic_id: topicId, journal, language,
+        ...(editedTopic ? {
+          edited_title: editedTopic.title,
+          edited_research_question: editedTopic.research_question,
+          edited_gap_description: editedTopic.gap_description,
+        } : {}),
+      }),
     }),
-  createPlanFromSession: (sessionId: string, journal: string, language = 'en', referenceIds?: string[]) =>
+  createPlanFromSession: (sessionId: string, journal: string, language = 'en', referenceIds?: string[], editedTopic?: { title: string; research_question: string; gap_description: string }) =>
     request<{ task_id: string }>('/plan/from-session', {
       method: 'POST',
-      body: JSON.stringify({ session_id: sessionId, journal, language, reference_ids: referenceIds }),
+      body: JSON.stringify({
+        session_id: sessionId, journal, language, reference_ids: referenceIds,
+        ...(editedTopic ? {
+          edited_title: editedTopic.title,
+          edited_research_question: editedTopic.research_question,
+          edited_gap_description: editedTopic.gap_description,
+        } : {}),
+      }),
+    }),
+  createPlanFromUploads: (journal: string, paperIds: string[], language = 'en', editedTopic?: { title: string; research_question: string; gap_description: string }) =>
+    request<{ task_id: string }>('/plan/from-uploads', {
+      method: 'POST',
+      body: JSON.stringify({
+        journal, paper_ids: paperIds, language,
+        ...(editedTopic ? {
+          edited_title: editedTopic.title,
+          edited_research_question: editedTopic.research_question,
+          edited_gap_description: editedTopic.gap_description,
+        } : {}),
+      }),
     }),
   getPlan: (planId: string) => request<import('./types').ResearchPlan>(`/plans/${planId}`),
   checkPlanReadiness: (params: { sessionId?: string; topicId?: string; query?: string }) =>
