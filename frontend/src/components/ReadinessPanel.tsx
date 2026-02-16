@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import type { ReadinessReport } from '@/lib/types';
 import UploadZone from '@/components/UploadZone';
+import ManualAddForm from '@/components/ManualAddForm';
 
 interface Props {
   report: ReadinessReport;
@@ -18,6 +20,9 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 };
 
 export default function ReadinessPanel({ report, loading, onUpload, onRecheck }: Props) {
+  const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const [resolvedItems, setResolvedItems] = useState<Set<string>>(new Set());
+
   if (loading) {
     return (
       <div className="bg-bg-card rounded-lg p-4 border border-slate-700">
@@ -49,22 +54,54 @@ export default function ReadinessPanel({ report, loading, onUpload, onRecheck }:
           <span className="text-[10px] font-medium text-accent uppercase tracking-wider">
             Primary Texts ({primary.filter((i) => i.available).length}/{primary.length})
           </span>
-          <div className="mt-1 space-y-1">
-            {primary.map((item, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs">
-                <span className={`flex-shrink-0 mt-0.5 ${item.available ? 'text-success' : 'text-red-400'}`}>
-                  {item.available ? '\u2713' : '\u2717'}
-                </span>
-                <div className="min-w-0">
-                  <span className="text-text-primary">
-                    {item.author ? `${item.author}, ` : ''}{item.title}
-                  </span>
-                  {item.reason && !item.available && (
-                    <p className="text-text-muted mt-0.5">{item.reason}</p>
+          <div className="mt-1 space-y-1.5">
+            {primary.map((item, i) => {
+              const itemKey = `primary-${i}`;
+              const isResolved = resolvedItems.has(itemKey);
+              const isExpanded = expandedItem === itemKey;
+              const isAvailable = item.available || isResolved;
+
+              return (
+                <div key={i}>
+                  <div className="flex items-start gap-2 text-xs">
+                    <span className={`flex-shrink-0 mt-0.5 ${isAvailable ? 'text-success' : 'text-red-400'}`}>
+                      {isAvailable ? '\u2713' : '\u2717'}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <span className={`text-text-primary ${isResolved ? 'line-through text-success' : ''}`}>
+                        {item.author ? `${item.author}, ` : ''}{item.title}
+                      </span>
+                      {item.reason && !isAvailable && (
+                        <p className="text-text-muted mt-0.5">{item.reason}</p>
+                      )}
+                    </div>
+                    {!isAvailable && (
+                      <button
+                        onClick={() => setExpandedItem(isExpanded ? null : itemKey)}
+                        className="flex-shrink-0 text-[10px] px-1.5 py-0.5 border border-slate-600 text-text-secondary rounded hover:bg-bg-hover transition-colors"
+                      >
+                        {isExpanded ? 'Cancel' : '+ Add'}
+                      </button>
+                    )}
+                  </div>
+                  {isExpanded && !isAvailable && (
+                    <div className="ml-6 mt-1">
+                      <ManualAddForm
+                        compact
+                        prefillTitle={item.title}
+                        prefillAuthors={item.author}
+                        defaultRefType="primary_literary"
+                        onAdded={() => {
+                          setResolvedItems((prev) => new Set(prev).add(itemKey));
+                          setExpandedItem(null);
+                          onRecheck?.();
+                        }}
+                      />
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -74,17 +111,49 @@ export default function ReadinessPanel({ report, loading, onUpload, onRecheck }:
           <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">
             Key Criticism/Theory ({criticism.filter((i) => i.available).length}/{criticism.length})
           </span>
-          <div className="mt-1 space-y-1">
-            {criticism.map((item, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs">
-                <span className={`flex-shrink-0 mt-0.5 ${item.available ? 'text-success' : 'text-text-muted'}`}>
-                  {item.available ? '\u2713' : '\u2717'}
-                </span>
-                <span className="text-text-secondary">
-                  {item.author ? `${item.author}, ` : ''}<span className="italic">{item.title}</span>
-                </span>
-              </div>
-            ))}
+          <div className="mt-1 space-y-1.5">
+            {criticism.map((item, i) => {
+              const itemKey = `criticism-${i}`;
+              const isResolved = resolvedItems.has(itemKey);
+              const isExpanded = expandedItem === itemKey;
+              const isAvailable = item.available || isResolved;
+
+              return (
+                <div key={i}>
+                  <div className="flex items-start gap-2 text-xs">
+                    <span className={`flex-shrink-0 mt-0.5 ${isAvailable ? 'text-success' : 'text-text-muted'}`}>
+                      {isAvailable ? '\u2713' : '\u2717'}
+                    </span>
+                    <span className={`text-text-secondary flex-1 ${isResolved ? 'line-through text-success' : ''}`}>
+                      {item.author ? `${item.author}, ` : ''}<span className="italic">{item.title}</span>
+                    </span>
+                    {!isAvailable && (
+                      <button
+                        onClick={() => setExpandedItem(isExpanded ? null : itemKey)}
+                        className="flex-shrink-0 text-[10px] px-1.5 py-0.5 border border-slate-600 text-text-secondary rounded hover:bg-bg-hover transition-colors"
+                      >
+                        {isExpanded ? 'Cancel' : '+ Add'}
+                      </button>
+                    )}
+                  </div>
+                  {isExpanded && !isAvailable && (
+                    <div className="ml-6 mt-1">
+                      <ManualAddForm
+                        compact
+                        prefillTitle={item.title}
+                        prefillAuthors={item.author}
+                        defaultRefType="secondary_criticism"
+                        onAdded={() => {
+                          setResolvedItems((prev) => new Set(prev).add(itemKey));
+                          setExpandedItem(null);
+                          onRecheck?.();
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -99,7 +168,7 @@ export default function ReadinessPanel({ report, loading, onUpload, onRecheck }:
               <UploadZone onUpload={onUpload} />
             </div>
           )}
-          {onRecheck && (
+          {onRecheck && !onUpload && (
             <button
               onClick={onRecheck}
               className="px-4 py-2 bg-accent text-bg-primary text-xs font-medium rounded-lg hover:bg-accent-dim transition-colors"

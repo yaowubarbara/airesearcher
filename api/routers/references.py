@@ -1,7 +1,8 @@
 """Reference acquisition and upload endpoints."""
 import time
+import uuid
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
@@ -15,6 +16,31 @@ UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "papers"
 class SearchRequest(BaseModel):
     topic: str
     max_results: int = 50
+
+
+class AddByDoiRequest(BaseModel):
+    doi: str
+    ref_type: Optional[str] = None
+    session_id: Optional[str] = None
+
+
+class ManualAddRequest(BaseModel):
+    title: str
+    authors: list[str] = []
+    year: int = 0
+    journal: Optional[str] = None
+    doi: Optional[str] = None
+    volume: Optional[str] = None
+    issue: Optional[str] = None
+    pages: Optional[str] = None
+    publisher: Optional[str] = None
+    ref_type: Optional[str] = None
+    session_id: Optional[str] = None
+
+
+class CrossRefSearchRequest(BaseModel):
+    query: str
+    rows: int = 10
 
 
 @router.post("/references/search")
@@ -63,17 +89,28 @@ async def search_references(req: SearchRequest, db=Depends(get_db), vs=Depends(g
 
 
 @router.post("/references/upload")
-async def upload_pdf(file: UploadFile = File(...), db=Depends(get_db), vs=Depends(get_vs)):
+async def upload_pdf(
+    file: UploadFile = File(...),
+    session_id: Optional[str] = Form(None),
+    db=Depends(get_db),
+    vs=Depends(get_vs),
+):
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(400, "Only PDF files accepted")
 
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    dest = UPLOAD_DIR / file.filename
+    # Save to session subfolder if session_id provided
+    if session_id:
+        dest_dir = UPLOAD_DIR / session_id
+    else:
+        dest_dir = UPLOAD_DIR
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / file.filename
     with open(dest, "wb") as f:
         content = await file.read()
         f.write(content)
 
     # Index the uploaded PDF
+    paper_id = None
     try:
         import sys
         from pathlib import Path as P
@@ -83,9 +120,271 @@ async def upload_pdf(file: UploadFile = File(...), db=Depends(get_db), vs=Depend
         from src.literature_indexer.indexer import Indexer
         indexer = Indexer(vector_store=vs)
         result = indexer.index_paper(str(dest), None)
-        return {"filename": file.filename, "path": str(dest), "indexed": True, "details": str(result)}
+
+        # Extract paper_id from indexer result if possible
+        if isinstance(result, dict) and result.get("paper_id"):
+            paper_id = result["paper_id"]
+        elif isinstance(result, str):
+            paper_id = result
+
+        # Link to session if provided
+        if session_id and paper_id:
+            db.add_papers_to_session(session_id, [paper_id])
+
+        return {
+            "filename": file.filename, "path": str(dest), "indexed": True,
+            "paper_id": paper_id, "details": str(result),
+        }
     except Exception as e:
-        return {"filename": file.filename, "path": str(dest), "indexed": False, "error": str(e)}
+        # Even if indexing fails, try to create a paper record and link to session
+        if session_id and not paper_id:
+            try:
+                from src.knowledge_base.models import Paper, PaperStatus
+                paper = Paper(
+                    title=file.filename.replace(".pdf", "").replace("_", " "),
+                    authors=[],
+                    year=0,
+                    journal="",
+                    pdf_path=str(dest),
+                    status=PaperStatus.PDF_DOWNLOADED,
+                )
+                paper_id = db.insert_paper(paper)
+                db.add_papers_to_session(session_id, [paper_id])
+            except Exception:
+                pass
+        return {
+            "filename": file.filename, "path": str(dest), "indexed": False,
+            "paper_id": paper_id, "error": str(e),
+        }
+
+
+@router.post("/references/add-by-doi")
+async def add_by_doi(req: AddByDoiRequest, db=Depends(get_db)):
+    """Quick-add a reference by DOI. Fetches metadata from CrossRef."""
+    import sys
+    from pathlib import Path as P
+    PROJECT_ROOT = P(__file__).resolve().parent.parent.parent
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
+    from src.knowledge_base.models import Paper, PaperStatus, Reference, ReferenceType
+    from src.utils.api_clients import CrossRefClient
+    from src.journal_monitor.sources.crossref import _crossref_item_to_paper
+
+    # Dedup check
+    existing = db.get_paper_by_doi(req.doi)
+    if existing:
+        # Still link to session if requested
+        if req.session_id and existing.id:
+            db.add_papers_to_session(req.session_id, [existing.id])
+        return {
+            "already_exists": True,
+            "paper_id": existing.id,
+            "title": existing.title,
+            "authors": existing.authors,
+            "year": existing.year,
+            "journal": existing.journal,
+        }
+
+    # Fetch metadata from CrossRef
+    client = CrossRefClient()
+    try:
+        metadata = await client.verify_doi(req.doi)
+    finally:
+        await client.close()
+
+    if not metadata:
+        raise HTTPException(404, f"DOI not found on CrossRef: {req.doi}")
+
+    paper = _crossref_item_to_paper(metadata, "")
+    paper.status = PaperStatus.METADATA_ONLY
+    paper_id = db.insert_paper(paper)
+
+    # Also insert as Reference
+    ref_type = ReferenceType.UNCLASSIFIED
+    if req.ref_type:
+        try:
+            ref_type = ReferenceType(req.ref_type)
+        except ValueError:
+            pass
+    ref = Reference(
+        paper_id=paper_id,
+        title=paper.title,
+        authors=paper.authors,
+        year=paper.year,
+        journal=paper.journal or "",
+        volume=paper.volume,
+        issue=paper.issue,
+        pages=paper.pages,
+        doi=paper.doi,
+        ref_type=ref_type,
+        verified=True,
+        verification_source="crossref",
+    )
+    ref_id = db.insert_reference(ref)
+
+    # Link to session if requested
+    if req.session_id:
+        db.add_papers_to_session(req.session_id, [paper_id])
+
+    return {
+        "already_exists": False,
+        "paper_id": paper_id,
+        "reference_id": ref_id,
+        "title": paper.title,
+        "authors": paper.authors,
+        "year": paper.year,
+        "journal": paper.journal,
+        "doi": paper.doi,
+    }
+
+
+@router.post("/references/add-manual")
+async def add_manual(req: ManualAddRequest, db=Depends(get_db)):
+    """Add a reference by typing metadata manually."""
+    import sys
+    from pathlib import Path as P
+    PROJECT_ROOT = P(__file__).resolve().parent.parent.parent
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
+    from src.knowledge_base.models import Paper, PaperStatus, Reference, ReferenceType
+
+    # Dedup by DOI if provided
+    if req.doi:
+        existing = db.get_paper_by_doi(req.doi)
+        if existing:
+            # Still link to session if requested
+            if req.session_id and existing.id:
+                db.add_papers_to_session(req.session_id, [existing.id])
+            return {
+                "already_exists": True,
+                "paper_id": existing.id,
+                "title": existing.title,
+            }
+
+    ref_type = ReferenceType.UNCLASSIFIED
+    if req.ref_type:
+        try:
+            ref_type = ReferenceType(req.ref_type)
+        except ValueError:
+            pass
+
+    paper = Paper(
+        title=req.title,
+        authors=req.authors,
+        year=req.year,
+        journal=req.journal or "",
+        doi=req.doi,
+        volume=req.volume,
+        issue=req.issue,
+        pages=req.pages,
+        status=PaperStatus.METADATA_ONLY,
+    )
+    paper_id = db.insert_paper(paper)
+
+    ref = Reference(
+        paper_id=paper_id,
+        title=req.title,
+        authors=req.authors,
+        year=req.year,
+        journal=req.journal or "",
+        volume=req.volume,
+        issue=req.issue,
+        pages=req.pages,
+        doi=req.doi,
+        publisher=req.publisher,
+        ref_type=ref_type,
+    )
+    ref_id = db.insert_reference(ref)
+
+    # Link to session if requested
+    if req.session_id:
+        db.add_papers_to_session(req.session_id, [paper_id])
+
+    return {
+        "already_exists": False,
+        "paper_id": paper_id,
+        "reference_id": ref_id,
+        "title": req.title,
+    }
+
+
+@router.post("/references/crossref-search")
+async def crossref_search(req: CrossRefSearchRequest):
+    """Search CrossRef by title/bibliographic query."""
+    import sys
+    from pathlib import Path as P
+    PROJECT_ROOT = P(__file__).resolve().parent.parent.parent
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
+    from src.utils.api_clients import CrossRefClient
+
+    client = CrossRefClient()
+    try:
+        result = await client.search_works(query_bibliographic=req.query, rows=req.rows)
+    finally:
+        await client.close()
+
+    items = result.get("message", {}).get("items", [])
+    matches = []
+    for item in items[:req.rows]:
+        title_list = item.get("title") or []
+        title = title_list[0] if title_list else ""
+        if not title:
+            continue
+        authors_raw = item.get("author") or []
+        authors = []
+        for a in authors_raw:
+            given = a.get("given", "")
+            family = a.get("family", "")
+            if given and family:
+                authors.append(f"{given} {family}")
+            elif family:
+                authors.append(family)
+        year = 0
+        date_parts = (item.get("published-print") or item.get("published-online") or {}).get("date-parts", [[]])
+        if date_parts and date_parts[0]:
+            year = date_parts[0][0] or 0
+        journal_names = item.get("container-title") or []
+        matches.append({
+            "doi": item.get("DOI", ""),
+            "title": title,
+            "authors": authors,
+            "year": year,
+            "journal": journal_names[0] if journal_names else "",
+            "volume": item.get("volume"),
+            "issue": item.get("issue"),
+            "pages": item.get("page"),
+        })
+
+    return {"results": matches, "total": len(matches)}
+
+
+@router.get("/references/sessions/{session_id}/papers")
+async def get_session_papers(session_id: str, db=Depends(get_db)):
+    """Return all papers in a session with full metadata, status, and recommended flag."""
+    from src.knowledge_base.models import PaperStatus
+
+    pairs = db.get_session_papers_with_recommended(session_id)
+    if not pairs:
+        # Verify session exists
+        sessions = db.get_search_sessions()
+        if not any(s["id"] == session_id for s in sessions):
+            raise HTTPException(404, "Search session not found")
+
+    papers = []
+    for paper, recommended in pairs:
+        papers.append({
+            "id": paper.id,
+            "title": paper.title,
+            "authors": paper.authors,
+            "year": paper.year,
+            "doi": paper.doi,
+            "journal": paper.journal,
+            "status": paper.status.value,
+            "pdf_path": paper.pdf_path,
+            "recommended": recommended,
+        })
+    return {"papers": papers}
 
 
 @router.get("/references/sessions")

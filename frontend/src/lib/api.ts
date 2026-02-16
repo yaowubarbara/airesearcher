@@ -35,9 +35,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ topic, max_results: maxResults }),
     }),
-  uploadPdf: async (file: File) => {
+  uploadPdf: async (file: File, sessionId?: string) => {
     const form = new FormData();
     form.append('file', file);
+    if (sessionId) form.append('session_id', sessionId);
     const res = await fetch(`${API_BASE}/references/upload`, { method: 'POST', body: form });
     if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`);
     return res.json();
@@ -49,10 +50,31 @@ export const api = {
   getPdfUrl: (paperId: string) => `${API_BASE}/references/pdf/${paperId}`,
   getSearchSessions: () =>
     request<{ sessions: import('./types').SearchSession[] }>('/references/sessions'),
+  getSessionPapers: (sessionId: string) =>
+    request<{ papers: import('./types').SessionPaper[] }>(`/references/sessions/${encodeURIComponent(sessionId)}/papers`),
   browserDownload: (sessionId?: string, limit = 20) =>
     request<{ task_id: string }>('/references/browser-download', {
       method: 'POST',
       body: JSON.stringify({ session_id: sessionId, limit }),
+    }),
+  addByDoi: (doi: string, refType?: string, sessionId?: string) =>
+    request<import('./types').ManualAddResult>('/references/add-by-doi', {
+      method: 'POST',
+      body: JSON.stringify({ doi, ref_type: refType, session_id: sessionId }),
+    }),
+  addManual: (data: {
+    title: string; authors?: string[]; year?: number; journal?: string;
+    doi?: string; volume?: string; issue?: string; pages?: string;
+    publisher?: string; ref_type?: string; session_id?: string;
+  }) =>
+    request<import('./types').ManualAddResult>('/references/add-manual', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  crossrefSearch: (query: string, rows = 10) =>
+    request<{ results: import('./types').CrossRefMatch[]; total: number }>('/references/crossref-search', {
+      method: 'POST',
+      body: JSON.stringify({ query, rows }),
     }),
 
   // Plan
@@ -61,10 +83,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ topic_id: topicId, journal, language }),
     }),
-  createPlanFromSession: (sessionId: string, journal: string, language = 'en') =>
+  createPlanFromSession: (sessionId: string, journal: string, language = 'en', referenceIds?: string[]) =>
     request<{ task_id: string }>('/plan/from-session', {
       method: 'POST',
-      body: JSON.stringify({ session_id: sessionId, journal, language }),
+      body: JSON.stringify({ session_id: sessionId, journal, language, reference_ids: referenceIds }),
     }),
   getPlan: (planId: string) => request<import('./types').ResearchPlan>(`/plans/${planId}`),
   checkPlanReadiness: (params: { sessionId?: string; topicId?: string; query?: string }) =>

@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { usePipelineStore } from '@/lib/store';
 import UploadZone from '@/components/UploadZone';
+import ManualAddForm from '@/components/ManualAddForm';
 import WishlistTable from '@/components/WishlistTable';
 import DownloadedTable from '@/components/DownloadedTable';
 import TaskProgress from '@/components/TaskProgress';
-import type { WishlistGroup, DownloadedGroup } from '@/lib/types';
+import type { WishlistGroup, DownloadedGroup, SearchSession } from '@/lib/types';
 
 export default function ReferencesPage() {
   const router = useRouter();
@@ -25,12 +26,22 @@ export default function ReferencesPage() {
   const [downloadedCount, setDownloadedCount] = useState(0);
   const [showDownloaded, setShowDownloaded] = useState(false);
   const [browserTaskId, setBrowserTaskId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<SearchSession[]>([]);
+  const [uploadSessionId, setUploadSessionId] = useState<string>('');
 
   useEffect(() => {
     setStage('references');
     loadWishlist();
     loadDownloaded();
+    loadSessions();
   }, [setStage]);
+
+  const loadSessions = async () => {
+    try {
+      const data = await api.getSearchSessions();
+      setSessions(data.sessions);
+    } catch {}
+  };
 
   const loadWishlist = async () => {
     try {
@@ -63,6 +74,7 @@ export default function ReferencesPage() {
     setActiveTaskId(null);
     loadWishlist();
     loadDownloaded();
+    loadSessions();
   }, [setActiveTaskId]);
 
   const startBrowserDownload = async (sessionId?: string) => {
@@ -124,8 +136,39 @@ export default function ReferencesPage() {
 
       {/* Upload */}
       <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
-        <h3 className="text-sm font-medium text-text-primary mb-3">Upload PDFs</h3>
-        <UploadZone onUpload={() => { loadWishlist(); loadDownloaded(); }} />
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium text-text-primary">Upload PDFs</h3>
+          {sessions.length > 0 && (
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-text-muted">Link to session:</label>
+              <select
+                value={uploadSessionId}
+                onChange={(e) => setUploadSessionId(e.target.value)}
+                className="bg-bg-primary border border-slate-600 rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent"
+              >
+                <option value="">No session (general)</option>
+                {sessions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.query} ({s.total_papers} papers)
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+        <UploadZone
+          sessionId={uploadSessionId || undefined}
+          onUpload={() => { loadWishlist(); loadDownloaded(); }}
+        />
+      </div>
+
+      {/* Manual Add */}
+      <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
+        <h3 className="text-sm font-medium text-text-primary mb-3">Add Reference Manually</h3>
+        <ManualAddForm
+          sessionId={uploadSessionId || undefined}
+          onAdded={() => { loadWishlist(); loadDownloaded(); }}
+        />
       </div>
 
       {/* Downloaded Papers */}

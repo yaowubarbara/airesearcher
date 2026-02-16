@@ -4,6 +4,7 @@ import { useMemo, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
 import type { ResearchPlan, OutlineSection, TheorySupplementResult } from '@/lib/types';
 import UploadZone from '@/components/UploadZone';
+import ManualAddForm from '@/components/ManualAddForm';
 import TaskProgress from '@/components/TaskProgress';
 import TheoryPanel from '@/components/TheoryPanel';
 
@@ -15,6 +16,8 @@ interface Props {
 export default function PlanOutline({ plan, onUpload }: Props) {
   const [theoryTaskId, setTheoryTaskId] = useState<string | null>(null);
   const [theoryResult, setTheoryResult] = useState<TheorySupplementResult | null>(null);
+  const [expandedRef, setExpandedRef] = useState<string | null>(null); // "sectionIdx-refIdx"
+  const [resolvedRefs, setResolvedRefs] = useState<Set<string>>(new Set());
 
   const outline: OutlineSection[] = useMemo(() => {
     if (Array.isArray(plan.outline)) return plan.outline;
@@ -103,13 +106,47 @@ export default function PlanOutline({ plan, onUpload }: Props) {
                   <span className="text-[10px] font-medium text-warning uppercase">
                     Missing References ({missingCount}):
                   </span>
-                  <div className="mt-0.5 space-y-0.5">
-                    {section.missing_references!.map((ref, j) => (
-                      <div key={j} className="flex items-start gap-1.5 text-xs text-warning/80">
-                        <span className="flex-shrink-0 mt-0.5">{'\u2717'}</span>
-                        <span>{ref}</span>
-                      </div>
-                    ))}
+                  <div className="mt-0.5 space-y-1.5">
+                    {section.missing_references!.map((ref, j) => {
+                      const refKey = `${i}-${j}`;
+                      const isResolved = resolvedRefs.has(refKey);
+                      const isExpanded = expandedRef === refKey;
+
+                      return (
+                        <div key={j}>
+                          <div className="flex items-start gap-1.5 text-xs">
+                            <span className={`flex-shrink-0 mt-0.5 ${isResolved ? 'text-success' : 'text-warning/80'}`}>
+                              {isResolved ? '\u2713' : '\u2717'}
+                            </span>
+                            <span className={isResolved ? 'text-success line-through' : 'text-warning/80'}>
+                              {ref}
+                            </span>
+                            {!isResolved && (
+                              <button
+                                onClick={() => setExpandedRef(isExpanded ? null : refKey)}
+                                className="flex-shrink-0 text-[10px] px-1.5 py-0.5 border border-slate-600 text-text-secondary rounded hover:bg-bg-hover transition-colors"
+                              >
+                                {isExpanded ? 'Cancel' : '+ Add'}
+                              </button>
+                            )}
+                          </div>
+                          {isExpanded && !isResolved && (
+                            <div className="ml-5 mt-1">
+                              <ManualAddForm
+                                compact
+                                prefillTitle={ref}
+                                defaultRefType="secondary_criticism"
+                                onAdded={() => {
+                                  setResolvedRefs((prev) => new Set(prev).add(refKey));
+                                  setExpandedRef(null);
+                                  onUpload?.({});
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

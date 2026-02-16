@@ -50,6 +50,7 @@ class ResearchPlanner:
         language: Language = Language.EN,
         journal_style_path: Optional[str] = None,
         skip_acquisition: bool = False,
+        selected_paper_ids: Optional[list[str]] = None,
     ) -> ResearchPlan:
         """Create a comprehensive research plan for a given topic.
 
@@ -102,6 +103,7 @@ class ResearchPlanner:
             research_question=topic.research_question,
             thesis=thesis,
             target_count=35,
+            paper_ids=selected_paper_ids,
         )
 
         # Gather reference metadata for outline generation

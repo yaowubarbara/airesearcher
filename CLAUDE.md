@@ -1,8 +1,8 @@
 # AI Researcher - Project Memory
 
 ## Current Status
-- Phase: 12 (Corpus Principal Detection) — COMPLETE
-- Last completed: Primary text missing detection after plan creation
+- Phase: 13 (Pre-Plan Readiness Gate + Per-Section Reference Grounding) — COMPLETE
+- Last completed: Readiness gate, per-section reference grounding, problématique enforcement
 - Currently working on: Nothing
 - Blockers: None
 
@@ -39,7 +39,8 @@
 - [x] **config/proxy.yaml** (institutional proxy config with 11 publisher domains)
 - [x] **config/citation_profiles/comparative_literature.yaml** (citation norms from 6-article analysis)
 - [x] **citation_verifier/** (parser, engine, annotator, pipeline — MLA citation parsing + CrossRef/OpenAlex verification + [VERIFY] tags)
-- [x] tests/ (14 test files, 394 unit tests total)
+- [x] **Web frontend** — Next.js + FastAPI: ReadinessPanel (upload + re-check), PlanOutline (per-section grounding), PlanChat, sufficiency gate
+- [x] tests/ (14 test files, 469 unit tests total)
 - [x] **tests/test_llm_pipeline.py** (5 LLM pipeline tests: discover, plan, write, review, full chain)
 - [x] **tests/test_citation_profile.py** (34 tests: profile loading, ReferenceType, DB, classification, balance)
 - [x] **tests/test_citation_phase10.py** (54 tests: Phase 10 citation features end-to-end)
@@ -225,6 +226,31 @@
   - **TestSearchPapersByTitle** (4): substring match, case-insensitive, no match, limit
 - [x] All 426 unit tests pass (36 new + 390 existing), 0 failures, no regressions
 
+## Phase 13 — Pre-Plan Readiness Gate + Per-Section Reference Grounding (COMPLETE)
+- [x] `OutlineSection.missing_references` field in `models.py` — backward-compatible `list[str]` default `[]`
+- [x] `outline_generator.py` — prompt changes:
+  - `PROBLEMATIQUE REQUIREMENT` block: each section's `argument` must be a specific, falsifiable claim naming authors/texts/concepts
+  - LLM instructed to separate `secondary_sources` (from available refs) vs `missing_references` (needed but unavailable)
+  - New `missing_references` JSON output field parsed in `_parse_outline()`
+- [x] `_ground_references(sections, available_references)` in `outline_generator.py`:
+  - Post-LLM cross-check: fuzzy-matches each `secondary_sources` entry against available references using `_jaccard_word_overlap()` (threshold 0.3)
+  - Unmatched sources moved to `missing_references` with dedup
+- [x] `planner.py` `refine_plan()` system prompt — added `missing_references` field and problématique requirement
+- [x] `types.ts` — `missing_references?: string[]` added to `OutlineSection` interface
+- [x] `ReadinessPanel.tsx` — new `onUpload` and `onRecheck` props:
+  - When `status !== 'ready'`: renders `UploadZone` for PDF upload + "Re-check Readiness" button
+- [x] `plan/page.tsx` — sufficiency gate:
+  - Extracted `triggerReadinessCheck` callback (reused in `useEffect` + buttons)
+  - `onUpload` triggers re-check after upload; `onRecheck` triggers re-check directly
+  - When not ready: warning banner + two buttons ("Re-check Readiness" primary, "Create Plan Anyway" warning-styled)
+  - When ready: normal "Create Plan" button
+- [x] `PlanOutline.tsx` — per-section reference grounding display:
+  - Argument prefixed with "Problématique:" label in accent color
+  - Secondary sources labeled "(N available)"
+  - Missing references shown with warning styling (amber text, ✗ icons)
+- [x] All 469 unit tests pass, 0 failures, no regressions
+- [x] TypeScript compiles cleanly (`npx tsc --noEmit`)
+
 ## Phase 9 — End-to-End LLM Pipeline Tests (COMPLETE)
 - [x] `pyproject.toml` — added `llm_pipeline` pytest marker
 - [x] `tests/test_llm_pipeline.py` — 5 test functions exercising real LLM calls:
@@ -270,7 +296,7 @@
 - `tests/test_citation_manager.py` — 83 tests (Phase 10.5: footnotes, block quotes, secondary citation, multilingual inline, extended format_citation, verify_all_citations, critic parsing, type grouping, bibliography formatting)
 - `tests/test_citation_verifier.py` — 64 tests (Phase 11: MLA parser, page range validation, annotation, report, engine verify, search methods, pipeline)
 - `tests/test_primary_text_detection.py` — 36 tests (Phase 12: title extraction, Jaccard overlap, models, detection with mocked DB/VS, DB title search)
-- **Total: 426 unit tests + 5 LLM pipeline tests, all passing (LLM tests skip without ZHIPUAI_API_KEY)**
+- **Total: 469 unit tests + 5 LLM pipeline tests, all passing (LLM tests skip without ZHIPUAI_API_KEY)**
 
 ## Key Decisions
 - LiteLLM as unified LLM gateway (see decisions.md #001)

@@ -142,6 +142,18 @@ export interface SearchSession {
   created_at: string;
 }
 
+export interface SessionPaper {
+  id: string;
+  title: string;
+  authors: string[];
+  year: number;
+  doi?: string;
+  journal: string;
+  status: string;
+  pdf_path?: string;
+  recommended: boolean;
+}
+
 export interface TaskProgress {
   taskId: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
@@ -194,6 +206,28 @@ export interface TheorySupplementResult {
   already_present: number;
   items: TheoryItem[];
   summary: string;
+}
+
+export interface ManualAddResult {
+  already_exists: boolean;
+  paper_id: string;
+  reference_id?: string;
+  title: string;
+  authors?: string[];
+  year?: number;
+  journal?: string;
+  doi?: string;
+}
+
+export interface CrossRefMatch {
+  doi: string;
+  title: string;
+  authors: string[];
+  year: number;
+  journal: string;
+  volume?: string;
+  issue?: string;
+  pages?: string;
 }
 
 export interface PlanMessage {

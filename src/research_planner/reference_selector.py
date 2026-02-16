@@ -88,6 +88,7 @@ class ReferenceSelector:
         thesis: str,
         target_count: int = 30,
         max_rounds: int = 3,
+        paper_ids: list[str] | None = None,
     ) -> list[str]:
         """Select relevant, verified references using Corrective RAG.
 
@@ -97,6 +98,10 @@ class ReferenceSelector:
         3. Discard irrelevant ones
         4. If not enough, reformulate query and re-retrieve
         5. Return list of reference IDs
+
+        Args:
+            paper_ids: If provided, restrict ChromaDB search to only chunks
+                belonging to these paper IDs.
         """
         from src.literature_indexer.embeddings import EmbeddingModel
 
@@ -105,12 +110,21 @@ class ReferenceSelector:
         seen_ids: set[str] = set()
         query = f"{research_question} {thesis}"
 
+        # Build ChromaDB where filter for paper_id restriction
+        where_filter = None
+        if paper_ids is not None and len(paper_ids) > 0:
+            if len(paper_ids) == 1:
+                where_filter = {"paper_id": paper_ids[0]}
+            else:
+                where_filter = {"paper_id": {"$in": paper_ids}}
+
         for round_num in range(max_rounds):
             # Retrieve candidates
             query_embedding = embedder.generate_embedding(query, is_query=True)
             results = self.vs.search_papers(
                 query_embedding=query_embedding,
                 n_results=target_count * 2,
+                where=where_filter,
             )
 
             if not results or not results.get("ids") or not results["ids"][0]:

@@ -8,6 +8,9 @@ import PlanOutline from '@/components/PlanOutline';
 import PlanChat from '@/components/PlanChat';
 import TaskProgress from '@/components/TaskProgress';
 import ReadinessPanel from '@/components/ReadinessPanel';
+import ReferencePicker from '@/components/ReferencePicker';
+import UploadZone from '@/components/UploadZone';
+import ManualAddForm from '@/components/ManualAddForm';
 import type { ResearchPlan, Topic, SearchSession, ReadinessReport } from '@/lib/types';
 
 export default function PlanPage() {
@@ -24,6 +27,7 @@ export default function PlanPage() {
   const [readiness, setReadiness] = useState<ReadinessReport | null>(null);
   const [readinessLoading, setReadinessLoading] = useState(false);
   const [chatKey, setChatKey] = useState(0);
+  const [showPicker, setShowPicker] = useState(false);
 
   const triggerReadinessCheck = useCallback(() => {
     const sessionId = selectedSessionId || undefined;
@@ -74,13 +78,21 @@ export default function PlanPage() {
     triggerReadinessCheck();
   }, [selectedSessionId, selectedTopicId, plan, triggerReadinessCheck]);
 
-  const createPlan = async () => {
+  const createPlan = async (selectedReferenceIds?: string[]) => {
     if (!selectedJournal) return;
+
+    // For session-based plans, show the reference picker first (unless called with ids)
+    if (selectedSessionId && !selectedReferenceIds) {
+      setShowPicker(true);
+      return;
+    }
 
     try {
       let taskId: string;
       if (selectedSessionId) {
-        const res = await api.createPlanFromSession(selectedSessionId, selectedJournal);
+        const res = await api.createPlanFromSession(
+          selectedSessionId, selectedJournal, 'en', selectedReferenceIds
+        );
         taskId = res.task_id;
       } else if (selectedTopicId) {
         const res = await api.createPlan(selectedTopicId, selectedJournal);
@@ -88,6 +100,7 @@ export default function PlanPage() {
       } else {
         return;
       }
+      setShowPicker(false);
       setActiveTaskId(taskId);
     } catch (e: any) {
       alert(e.message);
@@ -253,13 +266,36 @@ export default function PlanPage() {
             </div>
           )}
 
+          {/* Upload & Add References — always visible */}
+          <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
+            <h3 className="text-sm font-medium text-text-primary mb-3">Upload &amp; Add References</h3>
+            <div className="space-y-4">
+              <UploadZone onUpload={() => triggerReadinessCheck()} />
+              <div className="flex items-center gap-3">
+                <div className="flex-1 border-t border-slate-700" />
+                <span className="text-xs text-text-muted">or add by metadata</span>
+                <div className="flex-1 border-t border-slate-700" />
+              </div>
+              <ManualAddForm compact onAdded={() => triggerReadinessCheck()} />
+            </div>
+          </div>
+
           {/* Readiness check */}
           <ReadinessPanel
             report={readiness!}
             loading={readinessLoading}
-            onUpload={() => triggerReadinessCheck()}
             onRecheck={triggerReadinessCheck}
           />
+
+          {/* Reference Picker — shown when user clicks Create Plan with a session */}
+          {showPicker && selectedSessionId && selectedJournal && (
+            <ReferencePicker
+              sessionId={selectedSessionId}
+              journal={selectedJournal}
+              onConfirm={(ids) => createPlan(ids)}
+              onCancel={() => setShowPicker(false)}
+            />
+          )}
 
           {/* Status + Create button — sufficiency gate */}
           <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
@@ -289,7 +325,7 @@ export default function PlanPage() {
                     Re-check Readiness
                   </button>
                   <button
-                    onClick={createPlan}
+                    onClick={() => createPlan()}
                     disabled={!!activeTaskId || !canCreate}
                     className="px-5 py-2.5 border border-warning/50 text-warning text-sm font-medium rounded-lg hover:bg-warning/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
@@ -300,7 +336,7 @@ export default function PlanPage() {
             ) : (
               <>
                 <button
-                  onClick={createPlan}
+                  onClick={() => createPlan()}
                   disabled={!!activeTaskId || !canCreate}
                   className="px-5 py-2.5 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
