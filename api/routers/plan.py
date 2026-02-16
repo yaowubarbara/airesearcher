@@ -18,6 +18,7 @@ class PlanFromSessionRequest(BaseModel):
     session_id: str
     journal: str
     language: str = "en"
+    reference_ids: Optional[list[str]] = None
 
 
 class RefineRequest(BaseModel):
@@ -126,6 +127,7 @@ async def create_plan_from_session(req: PlanFromSessionRequest, db=Depends(get_d
             target_journal=req.journal,
             language=lang,
             skip_acquisition=True,
+            selected_paper_ids=req.reference_ids,
         )
 
         await task_mgr.update_progress(task_id, 0.8, "Detecting missing primary texts...")

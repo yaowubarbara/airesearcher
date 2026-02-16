@@ -5,9 +5,10 @@ import { api } from '@/lib/api';
 
 interface Props {
   onUpload?: (result: any) => void;
+  sessionId?: string;
 }
 
-export default function UploadZone({ onUpload }: Props) {
+export default function UploadZone({ onUpload, sessionId }: Props) {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [results, setResults] = useState<{ name: string; ok: boolean; msg: string }[]>([]);
@@ -22,7 +23,7 @@ export default function UploadZone({ onUpload }: Props) {
 
     for (const file of pdfFiles) {
       try {
-        const res = await api.uploadPdf(file);
+        const res = await api.uploadPdf(file, sessionId);
         newResults.push({ name: file.name, ok: res.indexed, msg: res.indexed ? 'Indexed' : res.error || 'Failed' });
         onUpload?.(res);
       } catch (e: any) {

@@ -634,6 +634,52 @@ class Database:
         ).fetchall()
         return [r[0] for r in rows]
 
+    def add_papers_to_session(
+        self, session_id: str, paper_ids: list[str], recommended: bool = False
+    ) -> int:
+        """Link additional papers to an existing session. Returns count added."""
+        added = 0
+        for pid in paper_ids:
+            try:
+                cursor = self.conn.execute(
+                    "INSERT OR IGNORE INTO search_session_papers (session_id, paper_id, recommended) VALUES (?, ?, ?)",
+                    (session_id, pid, 1 if recommended else 0),
+                )
+                added += cursor.rowcount
+            except Exception:
+                pass
+        self.conn.commit()
+        return added
+
+    def get_session_papers(self, session_id: str) -> list[Paper]:
+        """Return full Paper objects for a session, ordered by year DESC."""
+        rows = self.conn.execute(
+            """SELECT p.*, ssp.recommended
+            FROM papers p
+            JOIN search_session_papers ssp ON p.id = ssp.paper_id
+            WHERE ssp.session_id = ?
+            ORDER BY p.year DESC""",
+            (session_id,),
+        ).fetchall()
+        return [_row_to_paper(r) for r in rows]
+
+    def get_session_papers_with_recommended(self, session_id: str) -> list[tuple[Paper, bool]]:
+        """Return (Paper, recommended) tuples for a session, ordered by year DESC."""
+        rows = self.conn.execute(
+            """SELECT p.*, ssp.recommended
+            FROM papers p
+            JOIN search_session_papers ssp ON p.id = ssp.paper_id
+            WHERE ssp.session_id = ?
+            ORDER BY p.year DESC""",
+            (session_id,),
+        ).fetchall()
+        result = []
+        for r in rows:
+            paper = _row_to_paper(r)
+            recommended = bool(r["recommended"])
+            result.append((paper, recommended))
+        return result
+
 
 # --- Row converters ---
 
