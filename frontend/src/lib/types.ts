@@ -120,6 +120,27 @@ export interface WishlistResponse {
   groups: WishlistGroup[];
 }
 
+export interface DownloadedGroup {
+  id: string;
+  query: string;
+  timestamp: number;
+  paper_count: number;
+  papers: DownloadedPaper[];
+}
+
+export interface DownloadedResponse {
+  total_count: number;
+  groups: DownloadedGroup[];
+}
+
+export interface SearchSession {
+  id: string;
+  query: string;
+  total_papers: number;
+  indexed_count: number;
+  created_at: string;
+}
+
 export interface TaskProgress {
   taskId: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
@@ -135,6 +156,42 @@ export interface AcquisitionReport {
   downloaded: number;
   indexed: number;
   oa_resolved: number;
+  summary: string;
+}
+
+export interface ReadinessItem {
+  author: string;
+  title: string;
+  category: 'primary' | 'criticism';
+  reason: string;
+  available: boolean;
+}
+
+export interface ReadinessReport {
+  query: string;
+  status: 'ready' | 'missing_primary' | 'insufficient_criticism' | 'not_ready';
+  items: ReadinessItem[];
+  summary: string;
+}
+
+export interface TheoryItem {
+  author: string;
+  title: string;
+  relevance: string;
+  year?: number;
+  source: 'crossref' | 'openalex' | 'llm_only';
+  verified: boolean;
+  already_in_db: boolean;
+  has_full_text: boolean;
+}
+
+export interface TheorySupplementResult {
+  plan_id: string;
+  total_recommended: number;
+  verified: number;
+  inserted: number;
+  already_present: number;
+  items: TheoryItem[];
   summary: string;
 }
 

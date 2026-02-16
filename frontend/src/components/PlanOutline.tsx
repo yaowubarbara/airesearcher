@@ -1,12 +1,50 @@
 'use client';
 
-import type { ResearchPlan } from '@/lib/types';
+import { useMemo, useState, useCallback } from 'react';
+import { api } from '@/lib/api';
+import type { ResearchPlan, OutlineSection, TheorySupplementResult } from '@/lib/types';
+import UploadZone from '@/components/UploadZone';
+import TaskProgress from '@/components/TaskProgress';
+import TheoryPanel from '@/components/TheoryPanel';
 
 interface Props {
   plan: ResearchPlan;
+  onUpload?: (result: any) => void;
 }
 
-export default function PlanOutline({ plan }: Props) {
+export default function PlanOutline({ plan, onUpload }: Props) {
+  const [theoryTaskId, setTheoryTaskId] = useState<string | null>(null);
+  const [theoryResult, setTheoryResult] = useState<TheorySupplementResult | null>(null);
+
+  const outline: OutlineSection[] = useMemo(() => {
+    if (Array.isArray(plan.outline)) return plan.outline;
+    if (typeof plan.outline === 'string') {
+      try {
+        return JSON.parse(plan.outline);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }, [plan.outline]);
+
+  const startTheorySupplement = async () => {
+    if (!plan.id || theoryTaskId) return;
+    try {
+      const res = await api.theorySupplementPlan(plan.id);
+      setTheoryTaskId(res.task_id);
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
+  const handleTheoryComplete = useCallback((result: any) => {
+    setTheoryTaskId(null);
+    if (result) {
+      setTheoryResult(result);
+    }
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="bg-bg-card rounded-lg p-6 border border-slate-700">
@@ -18,9 +56,9 @@ export default function PlanOutline({ plan }: Props) {
 
       <div className="space-y-3">
         <h3 className="text-sm font-medium text-text-muted uppercase tracking-wider">
-          Outline ({plan.outline.length} sections)
+          Outline ({outline.length} sections)
         </h3>
-        {plan.outline.map((section, i) => (
+        {outline.map((section, i) => (
           <div
             key={i}
             className="bg-bg-card rounded-lg p-5 border border-slate-700"
@@ -35,7 +73,7 @@ export default function PlanOutline({ plan }: Props) {
             </div>
             <p className="text-xs text-text-secondary mb-3">{section.argument}</p>
 
-            {section.primary_texts.length > 0 && (
+            {section.primary_texts?.length > 0 && (
               <div className="mb-2">
                 <span className="text-[10px] font-medium text-accent uppercase">Primary Texts:</span>
                 <p className="text-xs text-text-muted mt-0.5">
@@ -43,7 +81,7 @@ export default function PlanOutline({ plan }: Props) {
                 </p>
               </div>
             )}
-            {section.secondary_sources.length > 0 && (
+            {section.secondary_sources?.length > 0 && (
               <div>
                 <span className="text-[10px] font-medium text-text-muted uppercase">Secondary Sources:</span>
                 <p className="text-xs text-text-muted mt-0.5">
@@ -68,11 +106,37 @@ export default function PlanOutline({ plan }: Props) {
               </div>
             ))}
           </div>
-          <p className="text-xs text-text-muted mt-3">
-            Upload these texts in the References stage to improve manuscript quality.
-          </p>
+          <div className="mt-4">
+            <p className="text-xs text-text-muted mb-3">
+              Upload these texts as PDFs to improve manuscript quality:
+            </p>
+            <UploadZone onUpload={onUpload} />
+          </div>
         </div>
       )}
+
+      {/* Theory supplement section */}
+      <div className="space-y-3">
+        {theoryResult ? (
+          <TheoryPanel result={theoryResult} />
+        ) : (
+          <>
+            <TaskProgress
+              taskId={theoryTaskId}
+              onComplete={handleTheoryComplete}
+              label="Supplementing theoretical framework..."
+            />
+            {!theoryTaskId && (
+              <button
+                onClick={startTheorySupplement}
+                className="px-4 py-2 border border-slate-600 text-text-secondary text-sm rounded-lg hover:bg-bg-hover hover:text-text-primary transition-colors"
+              >
+                Supplement Theoretical Framework
+              </button>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

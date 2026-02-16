@@ -45,7 +45,10 @@ export const api = {
   getWishlist: () =>
     request<import('./types').WishlistResponse>('/references/wishlist'),
   getDownloaded: () =>
-    request<{ count: number; papers: import('./types').DownloadedPaper[] }>('/references/downloaded'),
+    request<import('./types').DownloadedResponse>('/references/downloaded'),
+  getPdfUrl: (paperId: string) => `${API_BASE}/references/pdf/${paperId}`,
+  getSearchSessions: () =>
+    request<{ sessions: import('./types').SearchSession[] }>('/references/sessions'),
   browserDownload: (sessionId?: string, limit = 20) =>
     request<{ task_id: string }>('/references/browser-download', {
       method: 'POST',
@@ -58,7 +61,25 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ topic_id: topicId, journal, language }),
     }),
+  createPlanFromSession: (sessionId: string, journal: string, language = 'en') =>
+    request<{ task_id: string }>('/plan/from-session', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: sessionId, journal, language }),
+    }),
   getPlan: (planId: string) => request<import('./types').ResearchPlan>(`/plans/${planId}`),
+  checkPlanReadiness: (params: { sessionId?: string; topicId?: string; query?: string }) =>
+    request<import('./types').ReadinessReport>('/plan/readiness-check', {
+      method: 'POST',
+      body: JSON.stringify({
+        session_id: params.sessionId,
+        topic_id: params.topicId,
+        query: params.query,
+      }),
+    }),
+  theorySupplementPlan: (planId: string) =>
+    request<{ task_id: string }>(`/plans/${planId}/theory-supplement`, {
+      method: 'POST',
+    }),
 
   // Write
   startWriting: (planId: string) =>
