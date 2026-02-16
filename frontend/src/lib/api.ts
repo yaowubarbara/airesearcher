@@ -19,14 +19,22 @@ export const api = {
     request<{ name: string; is_active: boolean; profile: any }>(`/journals/${encodeURIComponent(name)}/profile`),
 
   // Discovery
-  startDiscovery: (journal: string, limit = 5) =>
+  startDiscovery: (journal: string, limit = 200) =>
     request<{ task_id: string }>('/discover', {
       method: 'POST',
       body: JSON.stringify({ journal, limit }),
     }),
-  getTopics: (status?: string, limit = 20) =>
+  getAnnotationStatus: () =>
+    request<import('./types').AnnotationStatus>('/discover/status'),
+  getDirections: (limit = 20) =>
+    request<{ directions: import('./types').ProblematiqueDirection[] }>(
+      `/directions?limit=${limit}`
+    ),
+  getDirectionWithTopics: (id: string) =>
+    request<import('./types').DirectionWithTopics>(`/directions/${encodeURIComponent(id)}`),
+  getTopics: (status?: string, limit = 20, directionId?: string) =>
     request<{ topics: import('./types').Topic[] }>(
-      `/topics?limit=${limit}${status ? `&status=${status}` : ''}`
+      `/topics?limit=${limit}${status ? `&status=${status}` : ''}${directionId ? `&direction_id=${directionId}` : ''}`
     ),
 
   // References

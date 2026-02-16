@@ -58,6 +58,7 @@ class WorkflowState:
     monitor_summary: str = ""
     # Topic discovery
     topics: list[dict] = field(default_factory=list)
+    directions: list[dict] = field(default_factory=list)
     selected_topic: Optional[dict] = None
     # Planning
     plan: Optional[dict] = None
@@ -149,37 +150,55 @@ def create_workflow(
             }
 
     async def discover_node(state: WorkflowState) -> dict:
-        """Run topic discovery and gap analysis."""
-        from src.topic_discovery.gap_analyzer import analyze_gaps
-        from src.topic_discovery.topic_scorer import score_topic
+        """Run topic discovery: annotate → cluster → generate topics."""
+        from src.topic_discovery.gap_analyzer import annotate_corpus
+        from src.topic_discovery.trend_tracker import cluster_into_directions
+        from src.topic_discovery.topic_scorer import generate_topics_for_direction
 
         try:
             papers = db.search_papers(limit=200)
-            gaps = await analyze_gaps(papers, llm_router)
 
-            topics = []
-            for gap in gaps[:10]:  # Process top 10 gaps
-                topic = TopicProposal(
-                    title=gap.get("title", "Untitled"),
-                    research_question=gap.get("potential_rq", gap.get("description", "")),
-                    gap_description=gap.get("description", ""),
-                    target_journals=[state.target_journal] if state.target_journal else [],
+            # Step 1: Annotate papers with P = <T, M, S, G>
+            annotations = await annotate_corpus(papers, llm_router, db)
+
+            # Step 2: Cluster into directions
+            directions = await cluster_into_directions(annotations, papers, llm_router)
+
+            # Step 3: Generate topics per direction, store in DB
+            all_topics: list[dict] = []
+            direction_dicts: list[dict] = []
+            for direction in directions:
+                dir_id = db.insert_direction(direction)
+                direction.id = dir_id
+
+                topics = await generate_topics_for_direction(
+                    direction, papers, annotations, llm_router
                 )
-                scored = score_topic(topic, papers, llm_router)
-                topics.append(scored.model_dump())
+                topic_ids = []
+                for topic in topics:
+                    topic.direction_id = dir_id
+                    if state.target_journal:
+                        topic.target_journals = [state.target_journal]
+                    tid = db.insert_topic(topic)
+                    topic.id = tid
+                    topic_ids.append(tid)
+                    all_topics.append(topic.model_dump())
 
-            # Sort by overall score
-            topics.sort(key=lambda t: t.get("overall_score", 0), reverse=True)
+                direction.topic_ids = topic_ids
+                # Update direction with topic_ids
+                db.insert_direction(direction)
+                direction_dicts.append(direction.model_dump())
 
             return {
-                "phase": WorkflowPhase.PLAN.value,
-                "topics": topics,
-                "selected_topic": topics[0] if topics else None,
+                "phase": WorkflowPhase.ACQUIRE_REFS.value,
+                "topics": all_topics,
+                "directions": direction_dicts,
+                "selected_topic": all_topics[0] if all_topics else None,
             }
         except Exception as e:
             logger.error("Topic discovery failed: %s", e)
             return {
-                "phase": WorkflowPhase.PLAN.value,
+                "phase": WorkflowPhase.ACQUIRE_REFS.value,
                 "errors": state.errors + [f"Discovery: {e}"],
             }
 

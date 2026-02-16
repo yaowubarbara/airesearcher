@@ -36,6 +36,26 @@ class ReferenceType(str, enum.Enum):
     UNCLASSIFIED = "unclassified"
 
 
+class AnnotationScale(str, enum.Enum):
+    """Scale at which a paper's problematic operates."""
+
+    TEXTUAL = "textual"
+    PERCEPTUAL = "perceptual"
+    MEDIATIONAL = "mediational"
+    INSTITUTIONAL = "institutional"
+    METHODOLOGICAL = "methodological"
+
+
+class AnnotationGap(str, enum.Enum):
+    """Type of gap identified in a paper's problematic."""
+
+    MEDIATIONAL_GAP = "mediational_gap"
+    TEMPORAL_FLATTENING = "temporal_flattening"
+    METHOD_NATURALIZATION = "method_naturalization"
+    SCALE_MISMATCH = "scale_mismatch"
+    INCOMMENSURABILITY_BLINDSPOT = "incommensurability_blindspot"
+
+
 class Paper(BaseModel):
     """A scholarly paper tracked by the system."""
 
@@ -96,6 +116,35 @@ class Quotation(BaseModel):
     is_primary_text: bool = False  # True if from a literary work being analyzed
 
 
+class PaperAnnotation(BaseModel):
+    """P-ontology annotation for a paper: P = <T, M, S, G>."""
+
+    id: Optional[str] = None
+    paper_id: str
+    tensions: list[str] = Field(default_factory=list)  # 1-2 items, "A <-> B"
+    mediators: list[str] = Field(default_factory=list)  # 1-2 mechanisms
+    scale: AnnotationScale = AnnotationScale.TEXTUAL
+    gap: AnnotationGap = AnnotationGap.MEDIATIONAL_GAP
+    evidence: str = ""
+    deobjectification: str = ""
+    created_at: Optional[datetime] = None
+
+
+class ProblematiqueDirection(BaseModel):
+    """A cluster of annotations forming a broad research direction."""
+
+    id: Optional[str] = None
+    title: str
+    description: str
+    dominant_tensions: list[str] = Field(default_factory=list)
+    dominant_mediators: list[str] = Field(default_factory=list)
+    dominant_scale: Optional[str] = None
+    dominant_gap: Optional[str] = None
+    paper_ids: list[str] = Field(default_factory=list)
+    topic_ids: list[str] = Field(default_factory=list)
+    created_at: Optional[datetime] = None
+
+
 class TopicProposal(BaseModel):
     """A proposed research topic with gap analysis."""
 
@@ -110,6 +159,7 @@ class TopicProposal(BaseModel):
     journal_fit_score: float = 0.0
     timeliness_score: float = 0.0
     overall_score: float = 0.0
+    direction_id: Optional[str] = None
     status: str = "proposed"  # proposed, approved, in_progress, completed
     created_at: Optional[datetime] = None
 

@@ -167,58 +167,65 @@ def _get_papers_from_db(db, limit: int = 30):
 
 @pytest.mark.asyncio
 async def test_stage_discover():
-    """Test gap analysis (STORM multi-perspective) with real LLM calls."""
-    from src.topic_discovery.gap_analyzer import analyze_gaps
-    from src.topic_discovery.topic_scorer import score_topic
-    from src.knowledge_base.models import TopicProposal
+    """Test P-ontology annotation + direction clustering + topic generation."""
+    from src.topic_discovery.gap_analyzer import annotate_corpus
+    from src.topic_discovery.trend_tracker import cluster_into_directions
+    from src.topic_discovery.topic_scorer import generate_topics_for_direction
 
     db, router, _vs = _make_db_and_router()
     papers = _get_papers_from_db(db, limit=30)
-    logger.info("Loaded %d papers from DB for gap analysis", len(papers))
+    logger.info("Loaded %d papers from DB for P-ontology annotation", len(papers))
 
+    # Step 1: Annotate
     t0 = time.time()
-    gaps = await retry_on_rate_limit(analyze_gaps, papers, router)
+    annotations = await retry_on_rate_limit(annotate_corpus, papers, router, db)
     elapsed = time.time() - t0
-    logger.info("analyze_gaps returned %d gaps in %.1fs", len(gaps), elapsed)
+    logger.info("annotate_corpus returned %d annotations in %.1fs", len(annotations), elapsed)
 
-    # --- Assertions ---
-    assert isinstance(gaps, list), "gaps should be a list"
-    assert len(gaps) > 0, "Should find at least one research gap"
+    assert isinstance(annotations, list), "annotations should be a list"
+    assert len(annotations) > 0, "Should annotate at least one paper"
 
-    required_keys = {"title", "description", "evidence", "perspectives", "potential_rq"}
-    for i, gap in enumerate(gaps):
-        assert isinstance(gap, dict), f"gap[{i}] should be a dict"
-        missing = required_keys - set(gap.keys())
-        assert not missing, f"gap[{i}] missing keys: {missing}"
-        assert 5 <= len(gap["title"]) <= 200, (
-            f"gap[{i}] title length {len(gap['title'])} out of range"
-        )
-        assert len(gap["description"]) > 20, (
-            f"gap[{i}] description too short: {gap['description']!r}"
-        )
+    for i, ann in enumerate(annotations):
+        assert ann.paper_id, f"annotation[{i}] missing paper_id"
+        assert ann.scale.value, f"annotation[{i}] missing scale"
+        assert ann.gap.value, f"annotation[{i}] missing gap"
 
-    # Print first gap
-    logger.info("--- First gap ---")
-    logger.info("  Title: %s", gaps[0]["title"])
-    logger.info("  RQ: %s", gaps[0]["potential_rq"])
+    logger.info("--- First annotation ---")
+    logger.info("  T: %s", annotations[0].tensions)
+    logger.info("  M: %s", annotations[0].mediators)
+    logger.info("  S: %s", annotations[0].scale.value)
+    logger.info("  G: %s", annotations[0].gap.value)
 
-    # Score the first gap
-    topic = TopicProposal(
-        title=gaps[0]["title"],
-        research_question=gaps[0]["potential_rq"],
-        gap_description=gaps[0]["description"],
-        target_journals=["Comparative Literature"],
+    # Step 2: Cluster
+    t0 = time.time()
+    directions = await retry_on_rate_limit(cluster_into_directions, annotations, papers, router)
+    elapsed = time.time() - t0
+    logger.info("cluster_into_directions returned %d directions in %.1fs", len(directions), elapsed)
+
+    assert isinstance(directions, list), "directions should be a list"
+    assert len(directions) > 0, "Should produce at least one direction"
+
+    for i, d in enumerate(directions):
+        assert d.title, f"direction[{i}] missing title"
+        assert d.description, f"direction[{i}] missing description"
+
+    # Step 3: Generate topics for first direction
+    first_dir = directions[0]
+    first_dir.id = "test-dir-1"
+    t0 = time.time()
+    topics = await retry_on_rate_limit(
+        generate_topics_for_direction, first_dir, papers, annotations, router
     )
-    scored = score_topic(topic, papers, router)
-    logger.info(
-        "Topic scored: novelty=%.2f feasibility=%.2f overall=%.3f",
-        scored.novelty_score,
-        scored.feasibility_score,
-        scored.overall_score,
-    )
-    assert 0.0 <= scored.novelty_score <= 1.0
-    assert 0.0 <= scored.feasibility_score <= 1.0
-    assert 0.0 <= scored.overall_score <= 1.0
+    elapsed = time.time() - t0
+    logger.info("generate_topics returned %d topics in %.1fs", len(topics), elapsed)
+
+    assert isinstance(topics, list), "topics should be a list"
+    assert len(topics) > 0, "Should generate at least one topic"
+
+    for i, topic in enumerate(topics):
+        assert topic.title, f"topic[{i}] missing title"
+        assert topic.research_question, f"topic[{i}] missing research_question"
+        assert topic.direction_id == "test-dir-1"
 
     print_cost_report("DISCOVER", db)
 

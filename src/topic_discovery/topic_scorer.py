@@ -1,181 +1,113 @@
-"""Score and rank topic proposals on novelty, feasibility, journal fit, and timeliness."""
+"""Generate concrete research topics for each problématique direction.
+
+Given a direction and its supporting paper annotations, proposes exactly 10
+specific research topics.
+"""
 
 from __future__ import annotations
 
 import json
 import logging
-from collections import Counter
-from datetime import datetime
+from typing import Any
 
-from src.knowledge_base.models import Paper, TopicProposal
+from src.knowledge_base.models import (
+    Paper,
+    PaperAnnotation,
+    ProblematiqueDirection,
+    TopicProposal,
+)
 from src.llm.router import LLMRouter
 
 logger = logging.getLogger(__name__)
 
-# Weights for the overall score (must sum to 1.0).
-SCORE_WEIGHTS = {
-    "novelty": 0.35,
-    "feasibility": 0.25,
-    "journal_fit": 0.15,
-    "timeliness": 0.25,
-}
-
-_RECENCY_WINDOW_YEARS = 5
-
 # ---------------------------------------------------------------------------
-# Prompt templates
+# Prompt
 # ---------------------------------------------------------------------------
 
-_NOVELTY_FEASIBILITY_PROMPT = """\
-You are a senior comparative-literature scholar evaluating a proposed research \
-topic against an existing corpus of papers.
+_TOPIC_GENERATION_PROMPT = """\
+You are a senior comparatist generating concrete research topics from a \
+broad problématique direction.
 
---- PROPOSED TOPIC ---
-Title: {title}
-Research question: {research_question}
-Gap description: {gap_description}
-Target journals: {target_journals}
---- END TOPIC ---
+--- DIRECTION ---
+Title: {direction_title}
+Description: {direction_description}
+Dominant tensions: {dominant_tensions}
+Dominant mediators: {dominant_mediators}
+Dominant scale: {dominant_scale}
+Dominant gap: {dominant_gap}
+--- END DIRECTION ---
 
---- RELEVANT CORPUS (up to {corpus_count} papers) ---
-{corpus_summary}
---- END CORPUS ---
+--- SUPPORTING PAPERS ({paper_count}) ---
+{paper_summaries}
+--- END PAPERS ---
 
-Evaluate the topic on two dimensions and return a JSON object with exactly \
-these keys:
+Propose exactly **10** specific, publishable research topics that fall under \
+this direction.  Each topic should:
+  - Address the direction's dominant gap type
+  - Be specific enough for a 8000-12000 word journal article
+  - Name concrete texts, authors, or corpora (not vague gestures)
+  - Formulate a clear research question with a falsifiable thesis
 
-1. "novelty" (float 0-1): How original is this topic relative to the corpus? \
-   1.0 = completely unexplored, 0.0 = already thoroughly covered.
-2. "novelty_rationale" (string): 1-2 sentence justification.
-3. "feasibility" (float 0-1): How feasible is it to execute this research with \
-   the available corpus and standard academic resources? Consider availability \
-   of primary texts, secondary sources, and methodological clarity. \
-   1.0 = highly feasible, 0.0 = practically impossible.
-4. "feasibility_rationale" (string): 1-2 sentence justification.
+Return a JSON array of exactly 10 objects with these keys:
+  "title": string (concise, max 20 words),
+  "research_question": string (one well-formed question),
+  "gap_description": string (2-3 sentences explaining the specific gap this \
+topic addresses)
 
-Output ONLY the JSON object, no other text.
+Output ONLY the JSON array, no other text.
 """
 
 
 # ---------------------------------------------------------------------------
-# Internal helpers
+# Helpers
 # ---------------------------------------------------------------------------
 
 
-def _current_year() -> int:
-    return datetime.utcnow().year
-
-
-def _build_corpus_summary(papers: list[Paper], max_papers: int = 60) -> str:
-    lines: list[str] = []
-    for p in papers[:max_papers]:
-        kw = ", ".join(p.keywords) if p.keywords else "none"
-        lines.append(
-            f"- [{p.language.value.upper()}] {p.title} | "
-            f"{', '.join(p.authors[:3])} | {p.journal} ({p.year}) | kw: {kw}"
-        )
-    if len(papers) > max_papers:
-        lines.append(f"... and {len(papers) - max_papers} more papers")
-    return "\n".join(lines)
-
-
-def _parse_json_object(text: str) -> dict:
-    """Robustly extract a JSON object from LLM output."""
+def _parse_json_array(text: str) -> list[Any]:
+    """Robustly extract a JSON array from LLM output."""
     text = text.strip()
-    start = text.find("{")
-    end = text.rfind("}")
+    if text.startswith("```"):
+        lines = text.split("\n")
+        lines = [l for l in lines if not l.strip().startswith("```")]
+        text = "\n".join(lines)
+    start = text.find("[")
+    end = text.rfind("]")
     if start == -1 or end == -1:
-        return {}
+        return []
     try:
         return json.loads(text[start : end + 1])
     except json.JSONDecodeError:
-        return {}
+        return []
 
 
-def _compute_timeliness(topic: TopicProposal, papers: list[Paper]) -> float:
-    """Estimate timeliness from paper recency and volume trends.
+def _build_paper_summaries(
+    direction: ProblematiqueDirection,
+    papers: list[Paper],
+    annotations: list[PaperAnnotation],
+) -> str:
+    """Build summaries of papers belonging to this direction, with annotations."""
+    paper_map = {p.id: p for p in papers if p.id}
+    ann_map = {a.paper_id: a for a in annotations}
 
-    Heuristic: a topic is timely when related papers are increasing in the
-    recent window, indicating growing scholarly interest.
+    lines: list[str] = []
+    for pid in direction.paper_ids:
+        paper = paper_map.get(pid)
+        ann = ann_map.get(pid)
+        if not paper:
+            continue
+        title = paper.title[:80]
+        t_str = ", ".join(ann.tensions) if ann and ann.tensions else "(none)"
+        m_str = ", ".join(ann.mediators) if ann and ann.mediators else "(none)"
+        s_str = ann.scale.value if ann else "?"
+        g_str = ann.gap.value if ann else "?"
+        evidence = (ann.evidence[:150] if ann and ann.evidence else "")
+        lines.append(
+            f"- {title} ({paper.year})\n"
+            f"  T: {t_str} | M: {m_str} | S: {s_str} | G: {g_str}\n"
+            f"  {evidence}"
+        )
 
-    Returns a float in [0, 1].
-    """
-    if not papers:
-        return 0.5  # neutral when we have no data
-
-    current = _current_year()
-    recent_cutoff = current - _RECENCY_WINDOW_YEARS
-
-    # Count papers per year in recent window
-    recent_year_counts: Counter = Counter()
-    total_recent = 0
-    for p in papers:
-        if p.year >= recent_cutoff:
-            recent_year_counts[p.year] += 1
-            total_recent += 1
-
-    if total_recent == 0:
-        return 0.2  # topic exists in corpus but no recent activity
-
-    # Simple trend: compare the most recent half of the window to the older half
-    midpoint = recent_cutoff + _RECENCY_WINDOW_YEARS // 2
-    older_half = sum(c for y, c in recent_year_counts.items() if y < midpoint)
-    newer_half = sum(c for y, c in recent_year_counts.items() if y >= midpoint)
-
-    if older_half + newer_half == 0:
-        return 0.5
-
-    # Ratio of newer to total recent gives a 0-1 growth signal
-    growth_ratio = newer_half / (older_half + newer_half)
-
-    # Also reward sheer volume of recent papers (capped contribution)
-    volume_bonus = min(total_recent / 20.0, 0.2)
-
-    timeliness = min(growth_ratio + volume_bonus, 1.0)
-    return round(timeliness, 3)
-
-
-def _compute_journal_fit(topic: TopicProposal, papers: list[Paper]) -> float:
-    """Estimate how well the topic fits its target journals.
-
-    Heuristic: check how many corpus papers appear in the topic's target
-    journals, and whether those journals publish on related keywords.
-
-    Returns a float in [0, 1].
-    """
-    if not topic.target_journals:
-        return 0.3  # no target journal specified; low but not zero
-
-    target_set = {j.strip().lower() for j in topic.target_journals}
-
-    matching_papers = [
-        p for p in papers if p.journal.strip().lower() in target_set
-    ]
-
-    if not matching_papers:
-        # Target journal not represented in corpus -- uncertain fit
-        return 0.4
-
-    # Keyword overlap between topic gap description and matching papers
-    topic_words = set(topic.gap_description.lower().split())
-    topic_words.update(topic.research_question.lower().split())
-
-    overlap_scores: list[float] = []
-    for p in matching_papers:
-        paper_words = set(kw.lower() for kw in p.keywords)
-        if paper_words:
-            overlap = len(topic_words & paper_words) / max(len(paper_words), 1)
-            overlap_scores.append(min(overlap, 1.0))
-
-    # Base score from presence in target journal + keyword relevance
-    presence_score = min(len(matching_papers) / 10.0, 0.5)
-    keyword_score = (
-        (sum(overlap_scores) / len(overlap_scores)) * 0.5
-        if overlap_scores
-        else 0.0
-    )
-
-    return round(min(presence_score + keyword_score, 1.0), 3)
+    return "\n".join(lines) if lines else "(no supporting papers)"
 
 
 # ---------------------------------------------------------------------------
@@ -183,108 +115,88 @@ def _compute_journal_fit(topic: TopicProposal, papers: list[Paper]) -> float:
 # ---------------------------------------------------------------------------
 
 
-def score_topic(
-    topic: TopicProposal,
+async def generate_topics_for_direction(
+    direction: ProblematiqueDirection,
     papers: list[Paper],
+    annotations: list[PaperAnnotation],
     llm_router: LLMRouter,
-) -> TopicProposal:
-    """Score a topic proposal and return it with updated score fields.
-
-    Scores:
-        - novelty (0-1): LLM-assessed originality vs. existing corpus
-        - feasibility (0-1): LLM-assessed practicality of the research
-        - journal_fit (0-1): heuristic match to target journal scope
-        - timeliness (0-1): heuristic based on publication recency trends
-        - overall_score: weighted average of the four dimensions
+) -> list[TopicProposal]:
+    """Generate 10 research topics for a single direction.
 
     Parameters
     ----------
-    topic:
-        The proposal to score.
+    direction:
+        The problématique direction to generate topics for.
     papers:
-        Corpus of papers for context.
+        Full paper corpus (for building summaries).
+    annotations:
+        All P-ontology annotations.
     llm_router:
         LLM router (uses task_type="topic_discovery").
 
     Returns
     -------
-    TopicProposal with all score fields populated.
+    list[TopicProposal] with direction_id set.
     """
-    # --- LLM-based scores: novelty and feasibility -------------------------
-    corpus_summary = _build_corpus_summary(papers)
-    user_prompt = _NOVELTY_FEASIBILITY_PROMPT.format(
-        title=topic.title,
-        research_question=topic.research_question,
-        gap_description=topic.gap_description,
-        target_journals=", ".join(topic.target_journals) if topic.target_journals else "not specified",
-        corpus_count=len(papers),
-        corpus_summary=corpus_summary,
+    paper_summaries = _build_paper_summaries(direction, papers, annotations)
+
+    user_prompt = _TOPIC_GENERATION_PROMPT.format(
+        direction_title=direction.title,
+        direction_description=direction.description,
+        dominant_tensions=", ".join(direction.dominant_tensions) if direction.dominant_tensions else "(none)",
+        dominant_mediators=", ".join(direction.dominant_mediators) if direction.dominant_mediators else "(none)",
+        dominant_scale=direction.dominant_scale or "(unspecified)",
+        dominant_gap=direction.dominant_gap or "(unspecified)",
+        paper_count=len(direction.paper_ids),
+        paper_summaries=paper_summaries,
     )
 
     messages = [
         {
             "role": "system",
             "content": (
-                "You are an expert evaluator of comparative-literature research "
-                "proposals. Return well-structured JSON only."
+                "You are a senior researcher in comparative literature. "
+                "Return well-structured JSON only."
             ),
         },
         {"role": "user", "content": user_prompt},
     ]
 
-    novelty = 0.5
-    feasibility = 0.5
-
     try:
         response = llm_router.complete(
             task_type="topic_discovery",
             messages=messages,
-            temperature=0.2,
+            temperature=0.5,
         )
         raw_text = llm_router.get_response_text(response)
-        parsed = _parse_json_object(raw_text)
-        if "novelty" in parsed:
-            novelty = max(0.0, min(1.0, float(parsed["novelty"])))
-        if "feasibility" in parsed:
-            feasibility = max(0.0, min(1.0, float(parsed["feasibility"])))
-        logger.info(
-            "LLM scores for '%s': novelty=%.2f, feasibility=%.2f",
-            topic.title,
-            novelty,
-            feasibility,
-        )
+        raw_topics = _parse_json_array(raw_text)
     except Exception:
-        logger.exception(
-            "LLM scoring failed for topic '%s'; using defaults", topic.title
+        logger.exception("Topic generation LLM call failed for direction '%s'", direction.title)
+        return []
+
+    topics: list[TopicProposal] = []
+    for t in raw_topics:
+        if not isinstance(t, dict) or "title" not in t:
+            continue
+        topic = TopicProposal(
+            title=t.get("title", "Untitled"),
+            research_question=t.get("research_question", ""),
+            gap_description=t.get("gap_description", ""),
+            direction_id=direction.id,
+            evidence_paper_ids=direction.paper_ids[:],
+            target_journals=[],
+            # Scores set to 0.0 — no separate scoring pass
+            novelty_score=0.0,
+            feasibility_score=0.0,
+            journal_fit_score=0.0,
+            timeliness_score=0.0,
+            overall_score=0.0,
         )
-
-    # --- Heuristic scores: timeliness and journal fit ----------------------
-    timeliness = _compute_timeliness(topic, papers)
-    journal_fit = _compute_journal_fit(topic, papers)
-
-    # --- Weighted overall score --------------------------------------------
-    overall = (
-        SCORE_WEIGHTS["novelty"] * novelty
-        + SCORE_WEIGHTS["feasibility"] * feasibility
-        + SCORE_WEIGHTS["journal_fit"] * journal_fit
-        + SCORE_WEIGHTS["timeliness"] * timeliness
-    )
-
-    # Update the topic in place and return it
-    topic.novelty_score = round(novelty, 3)
-    topic.feasibility_score = round(feasibility, 3)
-    topic.journal_fit_score = round(journal_fit, 3)
-    topic.timeliness_score = round(timeliness, 3)
-    topic.overall_score = round(overall, 3)
+        topics.append(topic)
 
     logger.info(
-        "Topic '%s' scored: novelty=%.2f feasibility=%.2f journal_fit=%.2f "
-        "timeliness=%.2f => overall=%.3f",
-        topic.title,
-        topic.novelty_score,
-        topic.feasibility_score,
-        topic.journal_fit_score,
-        topic.timeliness_score,
-        topic.overall_score,
+        "Generated %d topics for direction '%s'",
+        len(topics),
+        direction.title,
     )
-    return topic
+    return topics

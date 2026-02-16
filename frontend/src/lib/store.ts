@@ -23,6 +23,9 @@ interface PipelineState {
   selectedTopicId: string | null;
   selectTopic: (id: string) => void;
 
+  selectedDirectionId: string | null;
+  selectDirection: (id: string) => void;
+
   selectedSessionId: string | null;
   selectSession: (id: string | null) => void;
 
@@ -34,6 +37,11 @@ interface PipelineState {
 
   reviewResult: any | null;
   setReviewResult: (result: any) => void;
+
+  // Uploaded paper IDs (for "From Corpus" mode)
+  uploadedPaperIds: string[];
+  addUploadedPaperId: (id: string) => void;
+  clearUploadedPaperIds: () => void;
 
   // Task tracking
   activeTaskId: string | null;
@@ -60,11 +68,13 @@ const initialState = {
   currentStage: 'journal' as PipelineStage,
   selectedJournal: null,
   selectedTopicId: null,
+  selectedDirectionId: null,
   selectedSessionId: null,
   currentPlanId: null,
   currentManuscriptId: null,
   reviewResult: null,
   activeTaskId: null,
+  uploadedPaperIds: [] as string[],
   completedStages: [] as PipelineStage[],
 };
 
@@ -88,7 +98,18 @@ export const usePipelineStore = create<PipelineState>()(
           completedStages: addUnique(get().completedStages, 'discover'),
         }),
 
+      selectDirection: (id) => set({ selectedDirectionId: id }),
+
       selectSession: (id) => set({ selectedSessionId: id }),
+
+      addUploadedPaperId: (id) =>
+        set((state) => ({
+          uploadedPaperIds: state.uploadedPaperIds.includes(id)
+            ? state.uploadedPaperIds
+            : [...state.uploadedPaperIds, id],
+        })),
+
+      clearUploadedPaperIds: () => set({ uploadedPaperIds: [] }),
 
       setPlanId: (id) =>
         set({
@@ -120,7 +141,7 @@ export const usePipelineStore = create<PipelineState>()(
         if (stage === 'journal') return true;
         if (stage === 'discover') return !!selectedJournal;
         if (stage === 'references') return completedStages.includes('discover');
-        if (stage === 'plan') return completedStages.includes('discover') || completedStages.includes('references');
+        if (stage === 'plan') return completedStages.includes('discover') || completedStages.includes('references') || !!selectedJournal;
         if (stage === 'write') return completedStages.includes('plan');
         if (stage === 'review') return completedStages.includes('write');
         if (stage === 'revision') return completedStages.includes('review');

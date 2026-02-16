@@ -19,6 +19,7 @@ export interface Topic {
   journal_fit_score: number;
   timeliness_score: number;
   overall_score: number;
+  direction_id?: string;
   status: string;
   created_at?: string;
 }
@@ -253,4 +254,41 @@ export interface StatsData {
     by_model?: Record<string, { tokens: number; cost: number }>;
     by_task?: Record<string, { tokens: number; cost: number }>;
   };
+}
+
+export interface PaperAnnotation {
+  id: string;
+  paper_id: string;
+  tensions: string[];
+  mediators: string[];
+  scale: string;
+  gap: string;
+  evidence: string;
+  deobjectification: string;
+}
+
+export interface ProblematiqueDirection {
+  id: string;
+  title: string;
+  description: string;
+  dominant_tensions: string[];
+  dominant_mediators: string[];
+  dominant_scale?: string;
+  dominant_gap?: string;
+  paper_ids: string[];
+  topic_ids: string[];
+}
+
+export interface DirectionWithTopics {
+  direction: ProblematiqueDirection;
+  topics: Topic[];
+}
+
+export interface AnnotationStatus {
+  total_papers: number;
+  papers_with_abstract: number;
+  annotated: number;
+  unannotated: number;
+  directions: number;
+  topics: number;
 }
