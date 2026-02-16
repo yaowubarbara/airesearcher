@@ -119,6 +119,14 @@ export const api = {
         } : {}),
       }),
     }),
+  createPlanFromCustom: (params: {
+    title: string; research_question: string; gap_description: string;
+    journal: string; language?: string; session_id?: string; reference_ids?: string[];
+  }) =>
+    request<{ task_id: string }>('/plan/from-custom', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
   getPlan: (planId: string) => request<import('./types').ResearchPlan>(`/plans/${planId}`),
   checkPlanReadiness: (params: { sessionId?: string; topicId?: string; query?: string }) =>
     request<import('./types').ReadinessReport>('/plan/readiness-check', {
