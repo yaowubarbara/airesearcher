@@ -230,6 +230,13 @@ export interface CrossRefMatch {
   pages?: string;
 }
 
+export interface SynthesizedTopic {
+  title: string;
+  research_question: string;
+  gap_description: string;
+  source_paper_ids?: string[];
+}
+
 export interface PlanMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
