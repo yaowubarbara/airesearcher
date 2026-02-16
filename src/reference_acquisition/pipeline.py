@@ -9,7 +9,7 @@ from typing import Any, Optional
 from src.knowledge_base.db import Database
 from src.knowledge_base.models import PaperStatus
 from src.knowledge_base.vector_store import VectorStore
-from src.literature_indexer.indexer import Indexer
+from src.literature_indexer.indexer import Indexer, is_junk_title
 
 from .downloader import PDFDownloader
 from .oa_resolver import OAResolver
@@ -145,6 +145,8 @@ class ReferenceAcquisitionPipeline:
 
         # Step 2b: Only proceed with top papers for download/indexing
         # (Remaining papers are in SQLite for ReferenceSelector to use)
+        # Filter out junk titles (errata, editorials, etc.) before download
+        top_papers = [p for p in top_papers if not is_junk_title(p.title)]
         report.top_paper_ids = [p.id for p in top_papers if p.id]
         papers = top_papers
         if len(all_papers) > len(papers):

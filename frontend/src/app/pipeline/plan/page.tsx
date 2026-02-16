@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { usePipelineStore } from '@/lib/store';
 import PlanOutline from '@/components/PlanOutline';
+import PlanChat from '@/components/PlanChat';
 import TaskProgress from '@/components/TaskProgress';
 import ReadinessPanel from '@/components/ReadinessPanel';
 import type { ResearchPlan, Topic, SearchSession, ReadinessReport } from '@/lib/types';
@@ -22,6 +23,22 @@ export default function PlanPage() {
   const [topic, setTopic] = useState<Topic | null>(null);
   const [readiness, setReadiness] = useState<ReadinessReport | null>(null);
   const [readinessLoading, setReadinessLoading] = useState(false);
+  const [chatKey, setChatKey] = useState(0);
+
+  const triggerReadinessCheck = useCallback(() => {
+    const sessionId = selectedSessionId || undefined;
+    const topicId = (!selectedSessionId && selectedTopicId) ? selectedTopicId : undefined;
+    if (!sessionId && !topicId) {
+      setReadiness(null);
+      return;
+    }
+    setReadinessLoading(true);
+    setReadiness(null);
+    api.checkPlanReadiness({ sessionId, topicId })
+      .then((data) => setReadiness(data))
+      .catch(() => setReadiness(null))
+      .finally(() => setReadinessLoading(false));
+  }, [selectedSessionId, selectedTopicId]);
 
   useEffect(() => {
     setStage('plan');
@@ -54,19 +71,8 @@ export default function PlanPage() {
   // Fire readiness check when session or topic changes
   useEffect(() => {
     if (plan) return; // Don't check if plan already exists
-    const sessionId = selectedSessionId || undefined;
-    const topicId = (!selectedSessionId && selectedTopicId) ? selectedTopicId : undefined;
-    if (!sessionId && !topicId) {
-      setReadiness(null);
-      return;
-    }
-    setReadinessLoading(true);
-    setReadiness(null);
-    api.checkPlanReadiness({ sessionId, topicId })
-      .then((data) => setReadiness(data))
-      .catch(() => setReadiness(null))
-      .finally(() => setReadinessLoading(false));
-  }, [selectedSessionId, selectedTopicId, plan]);
+    triggerReadinessCheck();
+  }, [selectedSessionId, selectedTopicId, plan, triggerReadinessCheck]);
 
   const createPlan = async () => {
     if (!selectedJournal) return;
@@ -96,6 +102,12 @@ export default function PlanPage() {
     }
   }, [setActiveTaskId, setPlanId]);
 
+  const handlePlanRefined = useCallback((updatedPlan: any) => {
+    if (updatedPlan) {
+      setPlan(updatedPlan);
+    }
+  }, []);
+
   const handleProceed = () => {
     if (currentPlanId) {
       router.push('/pipeline/write');
@@ -112,6 +124,8 @@ export default function PlanPage() {
   } else if (topic) {
     basisLabel = `Topic: ${topic.title}`;
   }
+
+  const isNotReady = readiness && readiness.status !== 'ready';
 
   return (
     <div className="space-y-6">
@@ -142,9 +156,12 @@ export default function PlanPage() {
               api.getPlan(currentPlanId).then(setPlan).catch(() => {});
             }
           }} />
+          {plan.id && (
+            <PlanChat key={chatKey} planId={plan.id} onPlanUpdated={handlePlanRefined} />
+          )}
           <div className="flex justify-between pt-4 border-t border-slate-700">
             <button
-              onClick={() => { setPlan(null); }}
+              onClick={() => { setPlan(null); setChatKey((k) => k + 1); }}
               disabled={!!activeTaskId}
               className="px-4 py-2 border border-slate-600 text-text-secondary text-sm rounded-lg hover:bg-bg-hover transition-colors"
             >
@@ -237,9 +254,14 @@ export default function PlanPage() {
           )}
 
           {/* Readiness check */}
-          <ReadinessPanel report={readiness!} loading={readinessLoading} />
+          <ReadinessPanel
+            report={readiness!}
+            loading={readinessLoading}
+            onUpload={() => triggerReadinessCheck()}
+            onRecheck={triggerReadinessCheck}
+          />
 
-          {/* Status + Create button */}
+          {/* Status + Create button — sufficiency gate */}
           <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
             {basisLabel ? (
               <p className="text-sm text-text-secondary mb-4">
@@ -250,13 +272,42 @@ export default function PlanPage() {
                 Select a search session above, or discover a topic first.
               </p>
             )}
-            <button
-              onClick={createPlan}
-              disabled={!!activeTaskId || !canCreate}
-              className="px-5 py-2.5 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {readiness && readiness.status !== 'ready' ? 'Create Plan Anyway' : 'Create Plan'}
-            </button>
+
+            {isNotReady ? (
+              <div className="space-y-3">
+                <div className="bg-warning/10 border border-warning/30 rounded-lg px-4 py-3">
+                  <p className="text-xs text-warning">
+                    Key references are missing. Upload texts above and re-check, or proceed with reduced source coverage.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={triggerReadinessCheck}
+                    disabled={!!activeTaskId || readinessLoading}
+                    className="px-5 py-2.5 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Re-check Readiness
+                  </button>
+                  <button
+                    onClick={createPlan}
+                    disabled={!!activeTaskId || !canCreate}
+                    className="px-5 py-2.5 border border-warning/50 text-warning text-sm font-medium rounded-lg hover:bg-warning/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Create Plan Anyway
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={createPlan}
+                  disabled={!!activeTaskId || !canCreate}
+                  className="px-5 py-2.5 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Create Plan
+                </button>
+              </>
+            )}
             {!selectedJournal && (
               <p className="text-xs text-warning mt-2">Select a journal first (Journal stage).</p>
             )}

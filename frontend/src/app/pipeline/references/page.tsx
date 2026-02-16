@@ -6,8 +6,9 @@ import { api } from '@/lib/api';
 import { usePipelineStore } from '@/lib/store';
 import UploadZone from '@/components/UploadZone';
 import WishlistTable from '@/components/WishlistTable';
+import DownloadedTable from '@/components/DownloadedTable';
 import TaskProgress from '@/components/TaskProgress';
-import type { WishlistGroup, DownloadedPaper } from '@/lib/types';
+import type { WishlistGroup, DownloadedGroup } from '@/lib/types';
 
 export default function ReferencesPage() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function ReferencesPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [downloadedPapers, setDownloadedPapers] = useState<DownloadedPaper[]>([]);
+  const [downloadedGroups, setDownloadedGroups] = useState<DownloadedGroup[]>([]);
   const [downloadedCount, setDownloadedCount] = useState(0);
   const [showDownloaded, setShowDownloaded] = useState(false);
   const [browserTaskId, setBrowserTaskId] = useState<string | null>(null);
@@ -43,8 +44,8 @@ export default function ReferencesPage() {
   const loadDownloaded = async () => {
     try {
       const data = await api.getDownloaded();
-      setDownloadedPapers(data.papers);
-      setDownloadedCount(data.count);
+      setDownloadedGroups(data.groups);
+      setDownloadedCount(data.total_count);
     } catch {}
   };
 
@@ -141,40 +142,8 @@ export default function ReferencesPage() {
             {showDownloaded ? 'Hide' : 'Show'}
           </button>
         </div>
-        {showDownloaded && downloadedPapers.length > 0 && (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-700">
-                <th className="text-left py-2 px-3 text-xs text-text-muted font-medium uppercase">Title</th>
-                <th className="text-left py-2 px-3 text-xs text-text-muted font-medium uppercase">Authors</th>
-                <th className="text-left py-2 px-3 text-xs text-text-muted font-medium uppercase w-12">Year</th>
-                <th className="text-left py-2 px-3 text-xs text-text-muted font-medium uppercase w-20">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {downloadedPapers.map((p) => (
-                <tr key={p.id} className="border-b border-slate-700/50 hover:bg-bg-hover/30">
-                  <td className="py-2 px-3 text-text-primary max-w-xs truncate">{p.title}</td>
-                  <td className="py-2 px-3 text-text-secondary max-w-[180px] truncate">
-                    {p.authors.join(', ')}
-                  </td>
-                  <td className="py-2 px-3 text-text-muted">{p.year}</td>
-                  <td className="py-2 px-3">
-                    <span className={`text-[11px] px-2 py-0.5 rounded ${
-                      p.status === 'indexed'
-                        ? 'bg-emerald-500/15 text-success'
-                        : 'bg-blue-500/15 text-blue-400'
-                    }`}>
-                      {p.status === 'indexed' ? 'Indexed' : 'Downloaded'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        {showDownloaded && downloadedPapers.length === 0 && (
-          <p className="text-sm text-text-muted text-center py-4">No papers downloaded yet.</p>
+        {showDownloaded && (
+          <DownloadedTable groups={downloadedGroups} totalCount={downloadedCount} />
         )}
       </div>
 

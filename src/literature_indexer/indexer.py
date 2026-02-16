@@ -27,6 +27,47 @@ logger = logging.getLogger(__name__)
 _CHUNK_SIZE = 1000
 _CHUNK_OVERLAP = 200
 
+# Titles that indicate non-article filler content — never worth indexing.
+_JUNK_TITLE_EXACT = frozenset({
+    "erratum", "errata", "corrigendum", "corrigenda", "correction",
+    "retraction", "retraction notice", "retracted",
+    "editorial", "éditorial", "editorial board", "from the editors",
+    "table of contents", "contents", "front matter", "back matter",
+    "front cover", "back cover", "issue information",
+    "list of contributors", "list of reviewers", "acknowledgement to reviewers",
+    "index", "subject index", "author index",
+    "calendar", "announcements", "books received",
+    "masthead",
+})
+
+# Prefixes that indicate junk even when followed by more text.
+_JUNK_TITLE_PREFIXES = (
+    "erratum:", "erratum to", "erratum for",
+    "corrigendum to", "corrigendum:",
+    "correction to", "correction:",
+    "retraction:", "retraction notice:",
+    "editorial board",
+)
+
+
+def is_junk_title(title: str | None) -> bool:
+    """Return True if the title indicates non-article filler content.
+
+    These are items like errata, editorials, tables of contents, etc. that
+    contain no useful scholarly content and should not be indexed.
+    """
+    if not title or not title.strip():
+        return True
+    normalized = title.strip().lower()
+    if len(normalized) <= 2:
+        return True
+    if normalized in _JUNK_TITLE_EXACT:
+        return True
+    for prefix in _JUNK_TITLE_PREFIXES:
+        if normalized.startswith(prefix):
+            return True
+    return False
+
 
 class Indexer:
     """Orchestrates the full indexing pipeline for academic papers.
@@ -98,6 +139,16 @@ class Indexer:
 
         # Step 1: Parse
         parsed = parse_pdf(str(path))
+
+        # Reject junk content (errata, editorials, etc.)
+        if is_junk_title(parsed.title):
+            logger.info(
+                "Skipping junk content for paper %s: title=%r",
+                paper_id, (parsed.title or "")[:60],
+            )
+            raise ValueError(
+                f"Skipped: non-article content ({parsed.title!r})"
+            )
         detected_lang = detect_language(parsed.full_text or parsed.abstract or "")
         parsed.language = detected_lang
 

@@ -20,6 +20,11 @@ class PlanFromSessionRequest(BaseModel):
     language: str = "en"
 
 
+class RefineRequest(BaseModel):
+    feedback: str
+    conversation_history: list[dict] = []
+
+
 class ReadinessCheckRequest(BaseModel):
     session_id: Optional[str] = None
     topic_id: Optional[str] = None
@@ -141,6 +146,44 @@ async def get_plan(plan_id: str, db=Depends(get_db)):
     if not plan:
         raise HTTPException(404, "Plan not found")
     return plan
+
+
+@router.post("/plans/{plan_id}/refine")
+async def refine_plan(
+    plan_id: str,
+    req: RefineRequest,
+    db=Depends(get_db),
+    vs=Depends(get_vs),
+    llm=Depends(get_router),
+    tm=Depends(get_task_manager),
+):
+    """Refine a plan based on conversational feedback. Uses TaskManager."""
+    plan = db.get_plan(plan_id)
+    if not plan:
+        raise HTTPException(404, "Plan not found")
+
+    async def run_refine(task_mgr, task_id):
+        import sys
+        from pathlib import Path
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+        if str(PROJECT_ROOT) not in sys.path:
+            sys.path.insert(0, str(PROJECT_ROOT))
+        from src.research_planner.planner import ResearchPlanner
+
+        await task_mgr.update_progress(task_id, 0.1, "Refining plan...")
+        planner = ResearchPlanner(db=db, vector_store=vs, llm_router=llm)
+
+        updated_plan, message = await planner.refine_plan(
+            plan_id=plan_id,
+            feedback=req.feedback,
+            conversation_history=req.conversation_history,
+        )
+
+        await task_mgr.update_progress(task_id, 1.0, "Refinement complete")
+        return {"plan": updated_plan, "message": message}
+
+    task_id = tm.create_task("refine_plan", run_refine)
+    return {"task_id": task_id}
 
 
 @router.post("/plan/readiness-check")

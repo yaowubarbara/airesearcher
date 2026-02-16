@@ -76,6 +76,11 @@ export const api = {
         query: params.query,
       }),
     }),
+  refinePlan: (planId: string, feedback: string, history: { role: string; content: string }[]) =>
+    request<{ task_id: string }>(`/plans/${planId}/refine`, {
+      method: 'POST',
+      body: JSON.stringify({ feedback, conversation_history: history }),
+    }),
   theorySupplementPlan: (planId: string) =>
     request<{ task_id: string }>(`/plans/${planId}/theory-supplement`, {
       method: 'POST',

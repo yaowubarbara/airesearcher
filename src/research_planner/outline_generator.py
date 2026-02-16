@@ -77,15 +77,24 @@ Available references (use these to plan which sources to cite in each section):
 
 Generate a detailed outline with 5-7 sections. For each section provide:
 1. Section title
-2. The argument/point made in this section
+2. The argument/point made in this section (see PROBLEMATIQUE REQUIREMENT below)
 3. Primary texts to close-read (specific works and passages)
-4. Secondary sources to cite (from the available references)
-5. Estimated word count for this section
+4. Secondary sources to cite — ONLY from the available references listed above
+5. Missing references — works you consider essential for this section but NOT found in the available references above
+6. Estimated word count for this section
+
+PROBLEMATIQUE REQUIREMENT:
+Each section's "argument" MUST be a specific, falsifiable claim — NOT a vague description.
+BAD: "This section discusses the role of translation in Celan's poetry."
+GOOD: "Celan's post-1960 translations of Shakespeare reveal a systematic strategy of interlingual mourning that contradicts Steiner's claim of untranslatability."
+The argument must name specific authors, texts, or concepts, and make a claim that could be wrong.
 
 Output as a JSON array of objects with keys:
 "title", "argument", "primary_texts" (array of strings),
 "passages_to_analyze" (array of specific passage descriptions),
-"secondary_sources" (array of author-title strings), "estimated_words" (integer)
+"secondary_sources" (array of author-title strings FROM the available references),
+"missing_references" (array of author-title strings NOT in the available references),
+"estimated_words" (integer)
 
 Ensure:
 - The outline builds a coherent argument from introduction to conclusion
@@ -93,6 +102,8 @@ Ensure:
 - Each section has 3-6 secondary sources
 - The total word count matches the journal's expectations
 - Include genuine comparative analysis across languages/traditions
+- secondary_sources contains ONLY works from the available references list
+- missing_references contains works you need but that are NOT in the available references
 
 Output ONLY the JSON array."""
 
@@ -104,7 +115,8 @@ Output ONLY the JSON array."""
         )
         text = self.llm.get_response_text(response)
 
-        return self._parse_outline(text)
+        sections = self._parse_outline(text)
+        return _ground_references(sections, available_references)
 
     def _format_reference_summary(self, references: list[dict]) -> str:
         """Format references into a concise summary for the prompt."""
@@ -160,6 +172,52 @@ Output ONLY the JSON array."""
                     passages_to_analyze=item.get("passages_to_analyze", []),
                     secondary_sources=item.get("secondary_sources", []),
                     estimated_words=item.get("estimated_words", 1000),
+                    missing_references=item.get("missing_references", []),
                 )
             )
         return sections
+
+
+def _ground_references(
+    sections: list[OutlineSection],
+    available_references: list[dict],
+) -> list[OutlineSection]:
+    """Post-LLM cross-check: verify secondary_sources against available references.
+
+    Any source in secondary_sources that does not fuzzy-match an available
+    reference is moved to missing_references.
+    """
+    from src.research_planner.planner import _jaccard_word_overlap
+
+    # Build searchable strings from available refs
+    ref_strings: list[str] = []
+    for ref in available_references:
+        authors = ref.get("authors", [])
+        author_str = ", ".join(authors[:3])
+        title = ref.get("title", "")
+        ref_strings.append(f"{author_str} {title}".lower())
+
+    for section in sections:
+        verified: list[str] = []
+        newly_missing: list[str] = []
+        for source in section.secondary_sources:
+            source_lower = source.lower()
+            matched = False
+            for rs in ref_strings:
+                if _jaccard_word_overlap(source_lower, rs) > 0.3:
+                    matched = True
+                    break
+            if matched:
+                verified.append(source)
+            else:
+                newly_missing.append(source)
+
+        section.secondary_sources = verified
+        # Merge newly discovered missing refs, dedup
+        existing_missing = set(m.lower() for m in section.missing_references)
+        for nm in newly_missing:
+            if nm.lower() not in existing_missing:
+                section.missing_references.append(nm)
+                existing_missing.add(nm.lower())
+
+    return sections
