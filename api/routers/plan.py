@@ -42,6 +42,16 @@ class PlanFromUploadsRequest(BaseModel):
     edited_gap_description: Optional[str] = None
 
 
+class PlanFromCustomRequest(BaseModel):
+    title: str
+    research_question: str
+    gap_description: str = ""
+    journal: str
+    language: str = "en"
+    session_id: Optional[str] = None
+    reference_ids: Optional[list[str]] = None
+
+
 class SynthesizeTopicRequest(BaseModel):
     session_id: Optional[str] = None
     paper_ids: Optional[list[str]] = None
@@ -262,6 +272,69 @@ async def create_plan_from_uploads(req: PlanFromUploadsRequest, db=Depends(get_d
         return result
 
     task_id = tm.create_task("plan_from_uploads", run_plan)
+    return {"task_id": task_id}
+
+
+@router.post("/plan/from-custom")
+async def create_plan_from_custom(req: PlanFromCustomRequest, db=Depends(get_db), vs=Depends(get_vs), llm=Depends(get_router), tm=Depends(get_task_manager)):
+    """Create a plan from a user-defined topic, optionally linked to a search session's references."""
+    from api.routers.journals import ACTIVE_JOURNALS
+    if req.journal not in ACTIVE_JOURNALS:
+        raise HTTPException(400, "Journal not active")
+    if not req.title.strip():
+        raise HTTPException(400, "Title is required")
+
+    # If session_id provided, resolve paper_ids from it
+    selected_paper_ids = req.reference_ids
+    if req.session_id and not selected_paper_ids:
+        sessions = db.get_search_sessions()
+        for s in sessions:
+            if s["id"] == req.session_id:
+                selected_paper_ids = s["paper_ids"]
+                break
+
+    async def run_plan(task_mgr, task_id):
+        import sys
+        from pathlib import Path
+        PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+        if str(PROJECT_ROOT) not in sys.path:
+            sys.path.insert(0, str(PROJECT_ROOT))
+        from src.research_planner.planner import ResearchPlanner, detect_missing_primary_texts
+        from src.knowledge_base.models import Language, TopicProposal
+
+        await task_mgr.update_progress(task_id, 0.1, "Creating topic...")
+        topic = TopicProposal(
+            id=str(uuid.uuid4()),
+            title=req.title.strip(),
+            research_question=req.research_question.strip(),
+            gap_description=req.gap_description.strip(),
+            evidence_paper_ids=(selected_paper_ids or [])[:20],
+            overall_score=0.5,
+            status="approved",
+        )
+        topic.target_journals = [req.journal]
+        db.insert_topic(topic)
+
+        await task_mgr.update_progress(task_id, 0.2, "Creating research plan...")
+        planner = ResearchPlanner(db=db, vector_store=vs, llm_router=llm)
+        lang = Language(req.language) if req.language in ("en", "zh", "fr") else Language.EN
+        plan = await planner.create_plan(
+            topic=topic,
+            target_journal=req.journal,
+            language=lang,
+            skip_acquisition=True,
+            selected_paper_ids=selected_paper_ids,
+        )
+
+        await task_mgr.update_progress(task_id, 0.8, "Detecting missing primary texts...")
+        primary_report = detect_missing_primary_texts(plan, db, vs)
+
+        await task_mgr.update_progress(task_id, 1.0, "Plan complete")
+        result = plan.model_dump()
+        result["primary_text_report"] = primary_report.model_dump()
+        return result
+
+    task_id = tm.create_task("plan_from_custom", run_plan)
     return {"task_id": task_id}
 
 

@@ -14,7 +14,7 @@ import ManualAddForm from '@/components/ManualAddForm';
 import TopicEditor from '@/components/TopicEditor';
 import type { ResearchPlan, Topic, SearchSession, ReadinessReport, SynthesizedTopic } from '@/lib/types';
 
-type PlanMode = 'topic' | 'session' | 'corpus';
+type PlanMode = 'topic' | 'session' | 'corpus' | 'custom';
 
 export default function PlanPage() {
   const router = useRouter();
@@ -39,6 +39,7 @@ export default function PlanPage() {
   const [synthesizeTaskId, setSynthesizeTaskId] = useState<string | null>(null);
   const [selectedReferenceIds, setSelectedReferenceIds] = useState<string[] | null>(null);
   const [planGenerating, setPlanGenerating] = useState(false);
+  const [customSessionId, setCustomSessionId] = useState<string | null>(null);
 
   const triggerReadinessCheck = useCallback(() => {
     const sessionId = selectedSessionId || undefined;
@@ -96,7 +97,7 @@ export default function PlanPage() {
   // Fire readiness check when session or topic changes (for topic/session modes)
   useEffect(() => {
     if (plan) return;
-    if (mode === 'corpus') return;
+    if (mode === 'corpus' || mode === 'custom') return;
     triggerReadinessCheck();
   }, [selectedSessionId, selectedTopicId, plan, triggerReadinessCheck, mode]);
 
@@ -170,6 +171,15 @@ export default function PlanPage() {
         taskId = res.task_id;
       } else if (mode === 'corpus') {
         const res = await api.createPlanFromUploads(selectedJournal, uploadedPaperIds, 'en', editedTopic);
+        taskId = res.task_id;
+      } else if (mode === 'custom') {
+        const res = await api.createPlanFromCustom({
+          title: edited.title,
+          research_question: edited.research_question,
+          gap_description: edited.gap_description,
+          journal: selectedJournal,
+          session_id: customSessionId ?? undefined,
+        });
         taskId = res.task_id;
       } else {
         return;
@@ -350,6 +360,16 @@ export default function PlanPage() {
             >
               From Corpus
             </button>
+            <button
+              onClick={() => setMode('custom')}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                mode === 'custom'
+                  ? 'border-accent text-accent'
+                  : 'border-transparent text-text-muted hover:text-text-secondary'
+              }`}
+            >
+              Custom Topic
+            </button>
           </div>
 
           {/* ============ FROM TOPIC mode ============ */}
@@ -511,8 +531,53 @@ export default function PlanPage() {
             </div>
           )}
 
+          {/* ============ CUSTOM TOPIC mode ============ */}
+          {mode === 'custom' && (
+            <div className="space-y-4">
+              <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
+                <h3 className="text-sm font-medium text-text-primary mb-1">Define Your Topic</h3>
+                <p className="text-xs text-text-secondary mb-4">
+                  Enter your research topic directly. Optionally link a search session to ground the plan in collected references.
+                </p>
+
+                {sessions.length > 0 && (
+                  <div className="mb-4">
+                    <label className="block text-xs font-medium text-text-muted uppercase tracking-wider mb-1.5">
+                      Link References (optional)
+                    </label>
+                    <select
+                      value={customSessionId || ''}
+                      onChange={(e) => setCustomSessionId(e.target.value || null)}
+                      className="w-full px-3 py-2 bg-bg-primary border border-slate-600 rounded-lg text-sm text-text-primary focus:outline-none focus:border-accent"
+                    >
+                      <option value="">No linked session</option>
+                      {sessions.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.query} ({s.total_papers} papers, {s.indexed_count} indexed)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {!selectedJournal ? (
+                <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
+                  <p className="text-xs text-warning">Select a journal first (Journal stage).</p>
+                </div>
+              ) : (
+                <TopicEditor
+                  initialTopic={{ title: '', research_question: '', gap_description: '' }}
+                  onConfirm={handleTopicConfirm}
+                  onBack={() => setMode(hasSessionMode ? 'session' : 'topic')}
+                  loading={planGenerating}
+                />
+              )}
+            </div>
+          )}
+
           {/* Status + Create button — sufficiency gate */}
-          {!isSynthesizing && (
+          {!isSynthesizing && mode !== 'custom' && (
             <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
               {basisLabel ? (
                 <p className="text-sm text-text-secondary mb-4">
