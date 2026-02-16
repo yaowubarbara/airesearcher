@@ -6,20 +6,27 @@ import { api } from '@/lib/api';
 import { usePipelineStore } from '@/lib/store';
 import PlanOutline from '@/components/PlanOutline';
 import TaskProgress from '@/components/TaskProgress';
-import type { ResearchPlan } from '@/lib/types';
+import ReadinessPanel from '@/components/ReadinessPanel';
+import type { ResearchPlan, Topic, SearchSession, ReadinessReport } from '@/lib/types';
 
 export default function PlanPage() {
   const router = useRouter();
   const {
-    selectedTopicId, selectedJournal, currentPlanId,
-    setPlanId, activeTaskId, setActiveTaskId, setStage,
+    selectedTopicId, selectedJournal, currentPlanId, selectedSessionId,
+    setPlanId, selectSession, activeTaskId, setActiveTaskId, setStage,
   } = usePipelineStore();
 
   const [plan, setPlan] = useState<ResearchPlan | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sessions, setSessions] = useState<SearchSession[]>([]);
+  const [topic, setTopic] = useState<Topic | null>(null);
+  const [readiness, setReadiness] = useState<ReadinessReport | null>(null);
+  const [readinessLoading, setReadinessLoading] = useState(false);
 
   useEffect(() => {
     setStage('plan');
+
+    // Load existing plan if we have an ID
     if (currentPlanId) {
       setLoading(true);
       api.getPlan(currentPlanId)
@@ -27,13 +34,55 @@ export default function PlanPage() {
         .catch(() => {})
         .finally(() => setLoading(false));
     }
-  }, [setStage, currentPlanId]);
+
+    // Load search sessions for context
+    api.getSearchSessions()
+      .then((data) => setSessions(data.sessions))
+      .catch(() => {});
+
+    // Load selected topic details
+    if (selectedTopicId) {
+      api.getTopics(undefined, 100)
+        .then((data) => {
+          const found = data.topics.find((t) => t.id === selectedTopicId);
+          if (found) setTopic(found);
+        })
+        .catch(() => {});
+    }
+  }, [setStage, currentPlanId, selectedTopicId]);
+
+  // Fire readiness check when session or topic changes
+  useEffect(() => {
+    if (plan) return; // Don't check if plan already exists
+    const sessionId = selectedSessionId || undefined;
+    const topicId = (!selectedSessionId && selectedTopicId) ? selectedTopicId : undefined;
+    if (!sessionId && !topicId) {
+      setReadiness(null);
+      return;
+    }
+    setReadinessLoading(true);
+    setReadiness(null);
+    api.checkPlanReadiness({ sessionId, topicId })
+      .then((data) => setReadiness(data))
+      .catch(() => setReadiness(null))
+      .finally(() => setReadinessLoading(false));
+  }, [selectedSessionId, selectedTopicId, plan]);
 
   const createPlan = async () => {
-    if (!selectedTopicId || !selectedJournal) return;
+    if (!selectedJournal) return;
+
     try {
-      const { task_id } = await api.createPlan(selectedTopicId, selectedJournal);
-      setActiveTaskId(task_id);
+      let taskId: string;
+      if (selectedSessionId) {
+        const res = await api.createPlanFromSession(selectedSessionId, selectedJournal);
+        taskId = res.task_id;
+      } else if (selectedTopicId) {
+        const res = await api.createPlan(selectedTopicId, selectedJournal);
+        taskId = res.task_id;
+      } else {
+        return;
+      }
+      setActiveTaskId(taskId);
     } catch (e: any) {
       alert(e.message);
     }
@@ -53,6 +102,17 @@ export default function PlanPage() {
     }
   };
 
+  const canCreate = !!selectedJournal && (!!selectedTopicId || !!selectedSessionId);
+  const selectedSession = sessions.find((s) => s.id === selectedSessionId);
+
+  // Determine the basis label
+  let basisLabel = '';
+  if (selectedSessionId && selectedSession) {
+    basisLabel = `Search: "${selectedSession.query}"`;
+  } else if (topic) {
+    basisLabel = `Topic: ${topic.title}`;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -62,15 +122,6 @@ export default function PlanPage() {
             Generate a detailed outline with thesis statement and section structure.
           </p>
         </div>
-        {!plan && (
-          <button
-            onClick={createPlan}
-            disabled={!!activeTaskId || !selectedTopicId}
-            className="px-4 py-2 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Create Plan
-          </button>
-        )}
       </div>
 
       <TaskProgress
@@ -85,30 +136,131 @@ export default function PlanPage() {
         </div>
       ) : plan ? (
         <>
-          <PlanOutline plan={plan} />
+          <PlanOutline plan={plan} onUpload={() => {
+            // Refresh plan after upload to re-check primary texts
+            if (currentPlanId) {
+              api.getPlan(currentPlanId).then(setPlan).catch(() => {});
+            }
+          }} />
           <div className="flex justify-between pt-4 border-t border-slate-700">
             <button
-              onClick={createPlan}
+              onClick={() => { setPlan(null); }}
               disabled={!!activeTaskId}
               className="px-4 py-2 border border-slate-600 text-text-secondary text-sm rounded-lg hover:bg-bg-hover transition-colors"
             >
-              Regenerate Plan
+              New Plan
             </button>
             <button
               onClick={handleProceed}
               className="px-6 py-2.5 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim transition-colors"
             >
-              Approve & Write
+              Approve &amp; Write
             </button>
           </div>
         </>
       ) : (
-        <div className="text-center py-10">
-          <p className="text-text-secondary">
-            {selectedTopicId
-              ? 'Click "Create Plan" to generate a research outline.'
-              : 'Select a topic in the Discover stage first.'}
-          </p>
+        <div className="space-y-6">
+          {/* Context: selected topic */}
+          {topic && (
+            <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[10px] font-medium text-accent uppercase tracking-wider">Selected Topic</span>
+                {!selectedSessionId && (
+                  <span className="text-[10px] bg-accent/15 text-accent px-1.5 py-0.5 rounded">active</span>
+                )}
+              </div>
+              <h4 className="text-sm font-semibold text-text-primary">{topic.title}</h4>
+              <p className="text-xs text-text-secondary mt-1">{topic.research_question}</p>
+              {selectedSessionId && (
+                <button
+                  onClick={() => selectSession(null)}
+                  className="text-xs text-accent hover:underline mt-2"
+                >
+                  Use this topic instead
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Search sessions */}
+          {sessions.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-text-muted uppercase tracking-wider mb-3">
+                Search Sessions
+              </h3>
+              <div className="space-y-2">
+                {sessions.map((s) => {
+                  const isSelected = selectedSessionId === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => selectSession(isSelected ? null : s.id)}
+                      className={`w-full text-left rounded-lg p-4 border transition-colors ${
+                        isSelected
+                          ? 'border-accent bg-accent/5'
+                          : 'border-slate-700 bg-bg-card hover:border-slate-500'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-text-primary truncate">
+                            {s.query}
+                          </p>
+                          <div className="flex items-center gap-3 mt-1">
+                            <span className="text-xs text-text-muted">
+                              {s.total_papers} papers found
+                            </span>
+                            <span className={`text-xs ${s.indexed_count > 0 ? 'text-success' : 'text-warning'}`}>
+                              {s.indexed_count} indexed
+                            </span>
+                            <span className="text-xs text-text-muted">
+                              {new Date(s.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          {s.indexed_count === 0 && (
+                            <p className="text-[11px] text-warning mt-1">
+                              No papers indexed — plan quality may be limited
+                            </p>
+                          )}
+                        </div>
+                        {isSelected && (
+                          <span className="text-xs bg-accent/15 text-accent px-1.5 py-0.5 rounded flex-shrink-0">
+                            selected
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Readiness check */}
+          <ReadinessPanel report={readiness!} loading={readinessLoading} />
+
+          {/* Status + Create button */}
+          <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
+            {basisLabel ? (
+              <p className="text-sm text-text-secondary mb-4">
+                Plan will be based on: <span className="text-text-primary font-medium">{basisLabel}</span>
+              </p>
+            ) : (
+              <p className="text-sm text-text-secondary mb-4">
+                Select a search session above, or discover a topic first.
+              </p>
+            )}
+            <button
+              onClick={createPlan}
+              disabled={!!activeTaskId || !canCreate}
+              className="px-5 py-2.5 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {readiness && readiness.status !== 'ready' ? 'Create Plan Anyway' : 'Create Plan'}
+            </button>
+            {!selectedJournal && (
+              <p className="text-xs text-warning mt-2">Select a journal first (Journal stage).</p>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -38,6 +38,7 @@ class WorkflowPhase(str, Enum):
     DISCOVER = "discover"
     ACQUIRE_REFS = "acquire_refs"
     PLAN = "plan"
+    THEORY_SUPPLEMENT = "theory_supplement"
     WRITE = "write"
     VERIFY = "verify"
     VERIFY_CITATIONS = "verify_citations"
@@ -80,6 +81,8 @@ class WorkflowState:
     cover_letter: str = ""
     # Primary text detection
     primary_text_report: Optional[dict] = None
+    # Theory supplement
+    theory_supplement_report: Optional[dict] = None
     # Error tracking
     errors: list[str] = field(default_factory=list)
     # Configuration
@@ -246,7 +249,7 @@ def create_workflow(
                 logger.debug("Primary text detection failed", exc_info=True)
 
             return {
-                "phase": WorkflowPhase.WRITE.value,
+                "phase": WorkflowPhase.THEORY_SUPPLEMENT.value,
                 "plan": {
                     "id": plan.id,
                     "thesis_statement": plan.thesis_statement,
@@ -264,6 +267,58 @@ def create_workflow(
             return {
                 "phase": WorkflowPhase.DONE.value,
                 "errors": state.errors + [f"Planner: {e}"],
+            }
+
+    async def theory_supplement_node(state: WorkflowState) -> dict:
+        """Supplement the research plan with canonical theory works."""
+        from src.reference_acquisition.theory_supplement import TheorySupplement
+
+        if not state.plan:
+            return {"phase": WorkflowPhase.WRITE.value}
+
+        try:
+            supplement = TheorySupplement(db, vector_store, llm_router)
+            report = await supplement.supplement_plan(
+                plan_id=state.plan.get("id", ""),
+                thesis=state.plan.get("thesis_statement", ""),
+                outline_sections=state.plan.get("outline", []),
+                existing_reference_ids=state.plan.get("reference_ids", []),
+            )
+            logger.info(
+                "Theory supplement: recommended=%d, verified=%d, inserted=%d",
+                report.total_recommended,
+                report.verified,
+                report.inserted,
+            )
+            return {
+                "phase": WorkflowPhase.WRITE.value,
+                "theory_supplement_report": {
+                    "plan_id": report.plan_id,
+                    "total_recommended": report.total_recommended,
+                    "verified": report.verified,
+                    "inserted": report.inserted,
+                    "already_present": report.already_present,
+                    "items": [
+                        {
+                            "author": v.candidate.author,
+                            "title": v.candidate.title,
+                            "relevance": v.candidate.relevance,
+                            "source": v.source,
+                            "verified": v.verified,
+                            "already_in_db": v.already_in_db,
+                            "has_full_text": v.has_full_text,
+                        }
+                        for v in report.items
+                    ],
+                    "summary": report.summary(),
+                },
+            }
+        except Exception as e:
+            logger.error("Theory supplement failed: %s", e)
+            # Non-blocking: proceed to write
+            return {
+                "phase": WorkflowPhase.WRITE.value,
+                "errors": state.errors + [f"TheorySupplement: {e}"],
             }
 
     async def write_node(state: WorkflowState) -> dict:
@@ -494,6 +549,7 @@ def create_workflow(
     workflow.add_node("discover", discover_node)
     workflow.add_node("acquire_refs", acquire_refs_node)
     workflow.add_node("plan", plan_node)
+    workflow.add_node("theory_supplement", theory_supplement_node)
     workflow.add_node("write", write_node)
     workflow.add_node("verify", verify_node)
     workflow.add_node("verify_citations", verify_citations_node)
@@ -509,7 +565,8 @@ def create_workflow(
     workflow.add_edge("index", "discover")
     workflow.add_edge("discover", "acquire_refs")
     workflow.add_edge("acquire_refs", "plan")
-    workflow.add_edge("plan", "write")
+    workflow.add_edge("plan", "theory_supplement")
+    workflow.add_edge("theory_supplement", "write")
     workflow.add_edge("write", "verify")
     workflow.add_edge("verify", "verify_citations")
     workflow.add_edge("verify_citations", "review")

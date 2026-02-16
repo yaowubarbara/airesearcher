@@ -327,6 +327,14 @@ class Database:
         ).fetchall()
         return [_row_to_reference(r) for r in rows]
 
+    def search_references_by_title(self, query: str, limit: int = 5) -> list[Reference]:
+        """Search references by title substring (case-insensitive LIKE search)."""
+        rows = self.conn.execute(
+            "SELECT * FROM references_ WHERE LOWER(title) LIKE ? LIMIT ?",
+            (f"%{query.lower()}%", limit),
+        ).fetchall()
+        return [_row_to_reference(r) for r in rows]
+
     # --- Quotations ---
 
     def insert_quotation(self, quot: Quotation) -> str:
@@ -428,7 +436,11 @@ class Database:
         ).fetchone()
         if row is None:
             return None
-        return dict(row)
+        result = dict(row)
+        for field in ("outline", "reference_ids"):
+            if field in result and isinstance(result[field], str):
+                result[field] = json.loads(result[field])
+        return result
 
     # --- Manuscripts ---
 
