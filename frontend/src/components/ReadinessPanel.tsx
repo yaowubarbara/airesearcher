@@ -1,10 +1,13 @@
 'use client';
 
 import type { ReadinessReport } from '@/lib/types';
+import UploadZone from '@/components/UploadZone';
 
 interface Props {
   report: ReadinessReport;
   loading?: boolean;
+  onUpload?: (result: any) => void;
+  onRecheck?: () => void;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -14,7 +17,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
   not_ready: { label: 'Not Ready', color: 'text-red-400', bg: 'bg-red-400/10 border-red-400/30' },
 };
 
-export default function ReadinessPanel({ report, loading }: Props) {
+export default function ReadinessPanel({ report, loading, onUpload, onRecheck }: Props) {
   if (loading) {
     return (
       <div className="bg-bg-card rounded-lg p-4 border border-slate-700">
@@ -83,6 +86,27 @@ export default function ReadinessPanel({ report, loading }: Props) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {report.status !== 'ready' && (onUpload || onRecheck) && (
+        <div className="mt-4 pt-3 border-t border-slate-600/50 space-y-3">
+          {onUpload && (
+            <div>
+              <p className="text-xs text-text-muted mb-2">
+                Upload missing texts as PDFs to improve readiness:
+              </p>
+              <UploadZone onUpload={onUpload} />
+            </div>
+          )}
+          {onRecheck && (
+            <button
+              onClick={onRecheck}
+              className="px-4 py-2 bg-accent text-bg-primary text-xs font-medium rounded-lg hover:bg-accent-dim transition-colors"
+            >
+              Re-check Readiness
+            </button>
+          )}
         </div>
       )}
     </div>

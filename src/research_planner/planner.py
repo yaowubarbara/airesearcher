@@ -188,49 +188,130 @@ Output ONLY the thesis statement (1-3 sentences)."""
         )
         return self.llm.get_response_text(response).strip()
 
-    async def refine_plan(self, plan_id: str, feedback: str) -> ResearchPlan:
-        """Refine a plan based on user feedback."""
+    async def refine_plan(
+        self,
+        plan_id: str,
+        feedback: str,
+        conversation_history: list[dict] | None = None,
+    ) -> tuple[dict, str]:
+        """Refine a plan based on user feedback.
+
+        Args:
+            plan_id: The plan to refine.
+            feedback: The user's latest refinement request.
+            conversation_history: Optional prior conversation turns
+                ``[{role, content}, ...]`` for multi-turn context.
+
+        Returns:
+            A tuple of (updated_plan_data, assistant_message).
+        """
         plan_data = self.db.get_plan(plan_id)
         if not plan_data:
             raise ValueError(f"Plan {plan_id} not found")
 
-        prompt = f"""Revise this research plan based on the following feedback.
+        outline_json = json.dumps(plan_data["outline"], ensure_ascii=False, indent=2)
 
-Current thesis: {plan_data['thesis_statement']}
-Current outline: {plan_data['outline']}
+        system_prompt = """You are a comparative literature research planner.
+You will be given a current research plan (thesis + outline) and user feedback.
+Revise the plan according to the feedback.
 
-Feedback: {feedback}
+IMPORTANT: Each outline section MUST have these fields:
+- title (string)
+- argument (string — the section's core claim; see PROBLEMATIQUE below)
+- primary_texts (list of strings)
+- passages_to_analyze (list of strings)
+- secondary_sources (list of strings — works available in the corpus)
+- missing_references (list of strings — works needed but not yet available)
+- estimated_words (integer)
 
-Output a revised thesis statement and outline in the same JSON format.
-Respond with JSON: {{"thesis": "...", "outline": [...]}}"""
+PROBLEMATIQUE REQUIREMENT:
+Each section's "argument" MUST be a specific, falsifiable claim — NOT a vague description.
+BAD: "This section discusses the role of translation."
+GOOD: "Celan's post-1960 translations reveal a strategy of interlingual mourning that contradicts Steiner's claim of untranslatability."
+The argument must name specific authors, texts, or concepts, and make a claim that could be wrong.
+
+Respond with a JSON object containing exactly two keys:
+1. "plan" — an object with "thesis" (string) and "outline" (array of sections)
+2. "message" — a brief summary (1-3 sentences) of what you changed and why
+
+Example response format:
+```json
+{
+  "plan": {
+    "thesis": "Revised thesis...",
+    "outline": [
+      {
+        "title": "Introduction",
+        "argument": "...",
+        "primary_texts": ["Author, Title"],
+        "passages_to_analyze": ["..."],
+        "secondary_sources": ["..."],
+        "missing_references": ["..."],
+        "estimated_words": 1500
+      }
+    ]
+  },
+  "message": "I revised the thesis to focus on X and added a new section on Y."
+}
+```"""
+
+        # Build messages: system + conversation history + current request
+        messages: list[dict] = [{"role": "system", "content": system_prompt}]
+
+        if conversation_history:
+            for turn in conversation_history:
+                role = turn.get("role", "user")
+                content = turn.get("content", "")
+                if role in ("user", "assistant") and content:
+                    messages.append({"role": role, "content": content})
+
+        user_msg = f"""Current thesis:
+{plan_data['thesis_statement']}
+
+Current outline:
+{outline_json}
+
+User feedback: {feedback}"""
+        messages.append({"role": "user", "content": user_msg})
 
         response = self.llm.complete(
             task_type="writing_en",
-            messages=[{"role": "user", "content": prompt}],
+            messages=messages,
             temperature=0.5,
         )
         text = self.llm.get_response_text(response)
 
+        assistant_message = "Plan updated."
         try:
-            import re
             match = re.search(r"\{.*\}", text, re.DOTALL)
             if match:
                 data = json.loads(match.group())
-                if "thesis" in data:
+
+                # Extract plan data (support both nested and flat formats)
+                plan_obj = data.get("plan", data)
+                thesis = plan_obj.get("thesis")
+                outline = plan_obj.get("outline")
+
+                if thesis:
                     self.db.conn.execute(
                         "UPDATE research_plans SET thesis_statement = ? WHERE id = ?",
-                        (data["thesis"], plan_id),
+                        (thesis, plan_id),
                     )
-                if "outline" in data:
+                if outline:
                     self.db.conn.execute(
                         "UPDATE research_plans SET outline = ? WHERE id = ?",
-                        (json.dumps(data["outline"]), plan_id),
+                        (json.dumps(outline, ensure_ascii=False), plan_id),
                     )
                 self.db.conn.commit()
-        except (json.JSONDecodeError, ValueError):
-            pass
 
-        return plan_data
+                if data.get("message"):
+                    assistant_message = data["message"]
+        except (json.JSONDecodeError, ValueError) as exc:
+            logger.warning("Failed to parse refine response: %s", exc)
+            assistant_message = "I attempted to refine the plan but couldn't parse the result. Please try again."
+
+        updated = self.db.get_plan(plan_id)
+        return updated, assistant_message
 
 
 def _extract_title(text: str) -> str:

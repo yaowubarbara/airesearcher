@@ -23,6 +23,9 @@ interface PipelineState {
   selectedTopicId: string | null;
   selectTopic: (id: string) => void;
 
+  selectedSessionId: string | null;
+  selectSession: (id: string | null) => void;
+
   currentPlanId: string | null;
   setPlanId: (id: string) => void;
 
@@ -57,6 +60,7 @@ const initialState = {
   currentStage: 'journal' as PipelineStage,
   selectedJournal: null,
   selectedTopicId: null,
+  selectedSessionId: null,
   currentPlanId: null,
   currentManuscriptId: null,
   reviewResult: null,
@@ -83,6 +87,8 @@ export const usePipelineStore = create<PipelineState>()(
           selectedTopicId: id,
           completedStages: addUnique(get().completedStages, 'discover'),
         }),
+
+      selectSession: (id) => set({ selectedSessionId: id }),
 
       setPlanId: (id) =>
         set({

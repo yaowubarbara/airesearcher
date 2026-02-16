@@ -137,6 +137,7 @@ class OutlineSection(BaseModel):
     passages_to_analyze: list[str] = Field(default_factory=list)
     secondary_sources: list[str] = Field(default_factory=list)
     estimated_words: int = 0
+    missing_references: list[str] = Field(default_factory=list)
 
 
 class MissingPrimaryText(BaseModel):

@@ -2,6 +2,7 @@
 import time
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 from api.deps import get_db, get_vs, get_router, get_task_manager
@@ -85,6 +86,29 @@ async def upload_pdf(file: UploadFile = File(...), db=Depends(get_db), vs=Depend
         return {"filename": file.filename, "path": str(dest), "indexed": True, "details": str(result)}
     except Exception as e:
         return {"filename": file.filename, "path": str(dest), "indexed": False, "error": str(e)}
+
+
+@router.get("/references/sessions")
+async def get_sessions(db=Depends(get_db)):
+    """Return recent search session summaries for plan context."""
+    from src.knowledge_base.models import PaperStatus
+    sessions = db.get_search_sessions()[:10]
+    result = []
+    for s in sessions:
+        # Count how many of this session's papers are indexed
+        indexed_count = 0
+        for pid in s["paper_ids"]:
+            paper = db.get_paper(pid)
+            if paper and paper.status == PaperStatus.INDEXED:
+                indexed_count += 1
+        result.append({
+            "id": s["id"],
+            "query": s["query"],
+            "total_papers": len(s["paper_ids"]),
+            "indexed_count": indexed_count,
+            "created_at": s["created_at"],
+        })
+    return {"sessions": result}
 
 
 @router.get("/references/wishlist")
@@ -175,26 +199,85 @@ async def get_wishlist(db=Depends(get_db)):
 
 @router.get("/references/downloaded")
 async def get_downloaded(db=Depends(get_db)):
-    """Return papers that have been successfully downloaded/indexed."""
+    """Return downloaded/indexed papers, grouped by search session."""
     from src.knowledge_base.models import PaperStatus
-    papers = db.search_papers(status=PaperStatus.INDEXED, limit=500)
-    papers += db.search_papers(status=PaperStatus.PDF_DOWNLOADED, limit=500)
+    all_downloaded = db.search_papers(status=PaperStatus.INDEXED, limit=2000)
+    all_downloaded += db.search_papers(status=PaperStatus.PDF_DOWNLOADED, limit=2000)
+    downloaded_ids = {p.id for p in all_downloaded}
+    downloaded_map = {p.id: p for p in all_downloaded}
+
+    def _paper_dict(p):
+        return {
+            "id": p.id,
+            "title": p.title,
+            "authors": p.authors,
+            "year": p.year,
+            "doi": p.doi,
+            "journal": p.journal,
+            "status": p.status.value,
+            "pdf_path": p.pdf_path,
+        }
+
+    groups = []
+    claimed_ids: set[str] = set()
+
+    sessions = db.get_search_sessions()
+    for session in sessions:
+        session_downloaded = [
+            pid for pid in session["paper_ids"]
+            if pid in downloaded_ids and pid not in claimed_ids
+        ]
+        if not session_downloaded:
+            continue
+        claimed_ids.update(session_downloaded)
+        ts = session["created_at"]
+        try:
+            from datetime import datetime
+            timestamp = datetime.fromisoformat(ts).timestamp()
+        except Exception:
+            timestamp = 0
+        groups.append({
+            "id": session["id"],
+            "query": session["query"],
+            "timestamp": timestamp,
+            "paper_count": len(session_downloaded),
+            "papers": [_paper_dict(downloaded_map[pid]) for pid in session_downloaded if pid in downloaded_map],
+        })
+
+    # Remaining papers not in any session
+    unclaimed = [p for p in all_downloaded if p.id not in claimed_ids]
+    if unclaimed:
+        groups.append({
+            "id": "other",
+            "query": "Other downloads",
+            "timestamp": 0,
+            "paper_count": len(unclaimed),
+            "papers": [_paper_dict(p) for p in unclaimed],
+        })
+
+    total = sum(g["paper_count"] for g in groups)
     return {
-        "count": len(papers),
-        "papers": [
-            {
-                "id": p.id,
-                "title": p.title,
-                "authors": p.authors,
-                "year": p.year,
-                "doi": p.doi,
-                "journal": p.journal,
-                "status": p.status.value,
-                "pdf_path": p.pdf_path,
-            }
-            for p in papers
-        ],
+        "total_count": total,
+        "groups": groups,
     }
+
+
+@router.get("/references/pdf/{paper_id}")
+async def get_pdf(paper_id: str, db=Depends(get_db)):
+    """Serve a downloaded PDF for in-browser viewing."""
+    paper = db.get_paper(paper_id)
+    if not paper:
+        raise HTTPException(404, "Paper not found")
+    if not paper.pdf_path:
+        raise HTTPException(404, "No PDF available for this paper")
+    pdf_file = Path(paper.pdf_path)
+    if not pdf_file.is_file():
+        raise HTTPException(404, "PDF file not found on disk")
+    return FileResponse(
+        pdf_file,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"inline; filename=\"{pdf_file.name}\""},
+    )
 
 
 class BrowserDownloadRequest(BaseModel):
@@ -232,11 +315,12 @@ async def browser_download(req: BrowserDownloadRequest, db=Depends(get_db), vs=D
             all_needing = db.get_papers_needing_pdf(limit=500)
             paper_ids = [p.id for p in all_needing]
 
-        # Get paper objects with DOIs
+        # Get paper objects with DOIs, skip junk titles
+        from src.literature_indexer.indexer import is_junk_title
         papers_to_download = []
         for pid in paper_ids:
             p = db.get_paper(pid)
-            if p and p.doi and not p.pdf_path:
+            if p and p.doi and not p.pdf_path and not is_junk_title(p.title):
                 papers_to_download.append({"id": p.id, "doi": p.doi, "title": p.title})
             if len(papers_to_download) >= req.limit:
                 break

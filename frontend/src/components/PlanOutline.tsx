@@ -58,39 +58,64 @@ export default function PlanOutline({ plan, onUpload }: Props) {
         <h3 className="text-sm font-medium text-text-muted uppercase tracking-wider">
           Outline ({outline.length} sections)
         </h3>
-        {outline.map((section, i) => (
-          <div
-            key={i}
-            className="bg-bg-card rounded-lg p-5 border border-slate-700"
-          >
-            <div className="flex items-start justify-between mb-2">
-              <h4 className="font-semibold text-text-primary text-sm">
-                {i + 1}. {section.title}
-              </h4>
-              <span className="text-xs text-text-muted flex-shrink-0 ml-2">
-                ~{section.estimated_words} words
-              </span>
-            </div>
-            <p className="text-xs text-text-secondary mb-3">{section.argument}</p>
+        {outline.map((section, i) => {
+          const availableCount = section.secondary_sources?.length ?? 0;
+          const missingCount = section.missing_references?.length ?? 0;
 
-            {section.primary_texts?.length > 0 && (
-              <div className="mb-2">
-                <span className="text-[10px] font-medium text-accent uppercase">Primary Texts:</span>
-                <p className="text-xs text-text-muted mt-0.5">
-                  {section.primary_texts.join('; ')}
-                </p>
+          return (
+            <div
+              key={i}
+              className="bg-bg-card rounded-lg p-5 border border-slate-700"
+            >
+              <div className="flex items-start justify-between mb-2">
+                <h4 className="font-semibold text-text-primary text-sm">
+                  {i + 1}. {section.title}
+                </h4>
+                <span className="text-xs text-text-muted flex-shrink-0 ml-2">
+                  ~{section.estimated_words} words
+                </span>
               </div>
-            )}
-            {section.secondary_sources?.length > 0 && (
-              <div>
-                <span className="text-[10px] font-medium text-text-muted uppercase">Secondary Sources:</span>
-                <p className="text-xs text-text-muted mt-0.5">
-                  {section.secondary_sources.join('; ')}
-                </p>
+              <div className="text-xs text-text-secondary mb-3">
+                <span className="text-accent font-medium">Probl&eacute;matique:</span>{' '}
+                {section.argument}
               </div>
-            )}
-          </div>
-        ))}
+
+              {section.primary_texts?.length > 0 && (
+                <div className="mb-2">
+                  <span className="text-[10px] font-medium text-accent uppercase">Primary Texts:</span>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    {section.primary_texts.join('; ')}
+                  </p>
+                </div>
+              )}
+              {availableCount > 0 && (
+                <div className="mb-2">
+                  <span className="text-[10px] font-medium text-text-muted uppercase">
+                    Secondary Sources ({availableCount} available):
+                  </span>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    {section.secondary_sources.join('; ')}
+                  </p>
+                </div>
+              )}
+              {missingCount > 0 && (
+                <div>
+                  <span className="text-[10px] font-medium text-warning uppercase">
+                    Missing References ({missingCount}):
+                  </span>
+                  <div className="mt-0.5 space-y-0.5">
+                    {section.missing_references!.map((ref, j) => (
+                      <div key={j} className="flex items-start gap-1.5 text-xs text-warning/80">
+                        <span className="flex-shrink-0 mt-0.5">{'\u2717'}</span>
+                        <span>{ref}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {plan.primary_text_report && plan.primary_text_report.missing.length > 0 && (

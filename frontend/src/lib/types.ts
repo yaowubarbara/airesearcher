@@ -30,6 +30,7 @@ export interface OutlineSection {
   passages_to_analyze: string[];
   secondary_sources: string[];
   estimated_words: number;
+  missing_references?: string[];
 }
 
 export interface ResearchPlan {
@@ -193,6 +194,13 @@ export interface TheorySupplementResult {
   already_present: number;
   items: TheoryItem[];
   summary: string;
+}
+
+export interface PlanMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: number;
 }
 
 export interface StatsData {
