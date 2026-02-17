@@ -10,7 +10,7 @@ export default function ManuscriptViewer({ manuscript }: Props) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-bg-card rounded-lg p-6 border border-slate-700">
+      <div className="bg-bg-card rounded-lg p-6 border border-border">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2 className="text-lg font-bold text-text-primary">{manuscript.title}</h2>
@@ -25,7 +25,7 @@ export default function ManuscriptViewer({ manuscript }: Props) {
         {manuscript.keywords.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {manuscript.keywords.map((kw, i) => (
-              <span key={i} className="text-[10px] bg-slate-700 text-text-secondary px-2 py-0.5 rounded">
+              <span key={i} className="text-[10px] bg-gray-100 text-text-secondary px-2 py-0.5 rounded">
                 {kw}
               </span>
             ))}
@@ -35,14 +35,14 @@ export default function ManuscriptViewer({ manuscript }: Props) {
 
       {/* Abstract */}
       {manuscript.abstract && (
-        <div className="bg-bg-card rounded-lg p-6 border border-slate-700">
+        <div className="bg-bg-card rounded-lg p-6 border border-border">
           <h3 className="text-sm font-medium text-text-muted uppercase tracking-wider mb-3">Abstract</h3>
           <p className="text-sm text-text-secondary leading-relaxed">{manuscript.abstract}</p>
         </div>
       )}
 
       {/* Sections */}
-      <div className="bg-bg-card rounded-lg p-6 border border-slate-700">
+      <div className="bg-bg-card rounded-lg p-6 border border-border">
         <h3 className="text-sm font-medium text-text-muted uppercase tracking-wider mb-4">Manuscript</h3>
         {manuscript.full_text ? (
           <div

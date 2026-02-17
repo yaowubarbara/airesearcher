@@ -29,7 +29,7 @@ function PaperRows({ papers }: { papers: WishlistPaper[] }) {
     <div>
       {recommended.length > 0 && (
         <div>
-          <div className="px-4 py-2 bg-accent/5 border-b border-slate-700">
+          <div className="px-4 py-2 bg-accent-light border-b border-border">
             <span className="text-xs font-medium text-accent">
               Recommended ({recommended.length})
             </span>
@@ -42,7 +42,7 @@ function PaperRows({ papers }: { papers: WishlistPaper[] }) {
       )}
       {metadataOnly.length > 0 && (
         <div>
-          <div className="px-4 py-2 bg-slate-800/30 border-b border-t border-slate-700">
+          <div className="px-4 py-2 bg-gray-50 border-b border-t border-border">
             <span className="text-xs font-medium text-text-muted">
               Metadata only ({metadataOnly.length})
             </span>
@@ -64,7 +64,7 @@ function PaperTable({ papers, dimmed }: { papers: WishlistPaper[]; dimmed?: bool
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b border-slate-700">
+        <tr className="border-b border-border">
           <th className="text-left py-2 px-3 text-xs text-text-muted font-medium uppercase">Title</th>
           <th className="text-left py-2 px-3 text-xs text-text-muted font-medium uppercase">Authors</th>
           <th className="text-left py-2 px-3 text-xs text-text-muted font-medium uppercase w-12">Year</th>
@@ -73,7 +73,7 @@ function PaperTable({ papers, dimmed }: { papers: WishlistPaper[]; dimmed?: bool
       </thead>
       <tbody>
         {papers.map((p) => (
-          <tr key={p.id} className={`border-b border-slate-700/50 hover:bg-bg-hover/30 ${dimmed ? 'opacity-50' : ''}`}>
+          <tr key={p.id} className={`border-b border-border hover:bg-bg-hover/30 ${dimmed ? 'opacity-50' : ''}`}>
             <td className="py-2 px-3 text-text-primary max-w-xs">
               <span className="line-clamp-2">{p.title}</span>
             </td>
@@ -87,7 +87,7 @@ function PaperTable({ papers, dimmed }: { papers: WishlistPaper[]; dimmed?: bool
                   href={scholarUrl(p.title)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-colors"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
                   title="Search on Google Scholar"
                 >
                   Scholar
@@ -98,7 +98,7 @@ function PaperTable({ papers, dimmed }: { papers: WishlistPaper[]; dimmed?: bool
                       href={scihubUrl(p.doi)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
                       title="Find on Sci-Hub"
                     >
                       Sci-Hub
@@ -107,7 +107,7 @@ function PaperTable({ papers, dimmed }: { papers: WishlistPaper[]; dimmed?: bool
                       href={libgenUrl(p.doi)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-purple-500/15 text-purple-400 hover:bg-purple-500/25 transition-colors"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors"
                       title="Find on Library Genesis"
                     >
                       LibGen
@@ -116,7 +116,7 @@ function PaperTable({ papers, dimmed }: { papers: WishlistPaper[]; dimmed?: bool
                       href={`https://doi.org/${p.doi}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-slate-600/30 text-text-muted hover:text-text-secondary transition-colors"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-gray-100 text-text-muted hover:text-text-secondary transition-colors"
                       title="Publisher page"
                     >
                       DOI
@@ -170,7 +170,7 @@ export default function WishlistTable({ groups, totalCount, onBrowserDownload }:
         const recCount = group.recommended_count ?? 0;
 
         return (
-          <div key={group.id} className="border border-slate-700 rounded-lg overflow-hidden">
+          <div key={group.id} className="border border-border rounded-lg overflow-hidden">
             {/* Group header — clickable to expand/collapse */}
             <button
               onClick={() => toggle(group.id)}
@@ -184,23 +184,23 @@ export default function WishlistTable({ groups, totalCount, onBrowserDownload }:
                   {group.query}
                 </span>
                 {isLatest && (
-                  <span className="text-[10px] px-1.5 py-0.5 bg-accent/20 text-accent rounded flex-shrink-0">
+                  <span className="text-[10px] px-1.5 py-0.5 bg-accent-light text-accent rounded flex-shrink-0">
                     Latest
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 ml-3">
                 {group.downloaded > 0 && (
-                  <span className="text-[11px] px-2 py-0.5 bg-emerald-500/15 rounded text-success">
+                  <span className="text-[11px] px-2 py-0.5 bg-emerald-50 rounded text-success">
                     {group.downloaded} downloaded
                   </span>
                 )}
                 {recCount > 0 && (
-                  <span className="text-[11px] px-2 py-0.5 bg-accent/15 rounded text-accent">
+                  <span className="text-[11px] px-2 py-0.5 bg-accent-light rounded text-accent">
                     {recCount} recommended
                   </span>
                 )}
-                <span className="text-[11px] font-mono px-2 py-0.5 bg-slate-700 rounded text-text-secondary">
+                <span className="text-[11px] font-mono px-2 py-0.5 bg-gray-100 rounded text-text-secondary">
                   {group.needing_pdf} total
                 </span>
               </div>
@@ -208,19 +208,19 @@ export default function WishlistTable({ groups, totalCount, onBrowserDownload }:
 
             {/* Expanded content */}
             {isExpanded && (
-              <div className="border-t border-slate-700">
+              <div className="border-t border-border">
                 {/* Download effort summary */}
                 {(group.total_found > 0 || group.downloaded > 0) && (
-                  <div className="px-4 py-2 bg-slate-800/50 border-b border-slate-700 text-xs text-text-muted flex items-center justify-between">
+                  <div className="px-4 py-2 bg-gray-50 border-b border-border text-xs text-text-muted flex items-center justify-between">
                     <div className="flex gap-4">
                       <span>Found: <span className="text-text-secondary">{group.total_found}</span></span>
                       <span>Auto-downloaded: <span className="text-success">{group.downloaded}</span></span>
-                      <span>Still need PDF: <span className="text-amber-400">{group.needing_pdf}</span></span>
+                      <span>Still need PDF: <span className="text-warning">{group.needing_pdf}</span></span>
                     </div>
                     {onBrowserDownload && group.id !== 'other' && (
                       <button
                         onClick={(e) => { e.stopPropagation(); onBrowserDownload(group.id); }}
-                        className="px-2 py-1 bg-emerald-500/15 text-success rounded hover:bg-emerald-500/25 transition-colors"
+                        className="px-2 py-1 bg-emerald-50 text-success rounded hover:bg-emerald-100 transition-colors"
                       >
                         Browser download this group
                       </button>

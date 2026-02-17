@@ -50,7 +50,7 @@ export default function PlanOutline({ plan, onUpload }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-bg-card rounded-lg p-6 border border-slate-700">
+      <div className="bg-bg-card rounded-lg p-6 border border-border">
         <h3 className="text-sm font-medium text-text-muted uppercase tracking-wider mb-2">
           Thesis Statement
         </h3>
@@ -68,7 +68,7 @@ export default function PlanOutline({ plan, onUpload }: Props) {
           return (
             <div
               key={i}
-              className="bg-bg-card rounded-lg p-5 border border-slate-700"
+              className="bg-bg-card rounded-lg p-5 border border-border"
             >
               <div className="flex items-start justify-between mb-2">
                 <h4 className="font-semibold text-text-primary text-sm">
@@ -124,7 +124,7 @@ export default function PlanOutline({ plan, onUpload }: Props) {
                             {!isResolved && (
                               <button
                                 onClick={() => setExpandedRef(isExpanded ? null : refKey)}
-                                className="flex-shrink-0 text-[10px] px-1.5 py-0.5 border border-slate-600 text-text-secondary rounded hover:bg-bg-hover transition-colors"
+                                className="flex-shrink-0 text-[10px] px-1.5 py-0.5 border border-border text-text-secondary rounded hover:bg-bg-hover transition-colors"
                               >
                                 {isExpanded ? 'Cancel' : '+ Add'}
                               </button>
@@ -191,7 +191,7 @@ export default function PlanOutline({ plan, onUpload }: Props) {
             {!theoryTaskId && (
               <button
                 onClick={startTheorySupplement}
-                className="px-4 py-2 border border-slate-600 text-text-secondary text-sm rounded-lg hover:bg-bg-hover hover:text-text-primary transition-colors"
+                className="px-4 py-2 border border-border text-text-secondary text-sm rounded-lg hover:bg-bg-hover hover:text-text-primary transition-colors"
               >
                 Supplement Theoretical Framework
               </button>

@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { usePipelineStore } from '@/lib/store';
 import DirectionCard from '@/components/DirectionCard';
 import TaskProgress from '@/components/TaskProgress';
+import CorpusStudiedPanel from '@/components/CorpusStudiedPanel';
 import type { ProblematiqueDirection, Topic, AnnotationStatus, DirectionWithTopics } from '@/lib/types';
 
 interface DirectionState {
@@ -121,7 +122,7 @@ export default function DiscoverPage() {
         <button
           onClick={startDiscovery}
           disabled={!!activeTaskId || !selectedJournal}
-          className="px-4 py-2 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 bg-accent text-text-inverse text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           Run Discovery
         </button>
@@ -129,16 +130,18 @@ export default function DiscoverPage() {
 
       {/* Annotation status bar */}
       {annotationStatus && (
-        <div className="flex items-center gap-4 text-xs text-text-muted bg-slate-800/50 rounded-lg px-4 py-2.5">
+        <div className="flex items-center gap-4 text-xs text-text-muted bg-gray-50 rounded-lg px-4 py-2.5">
           <span>{annotationStatus.annotated} annotated</span>
-          <span className="text-slate-600">|</span>
+          <span className="text-border-strong">|</span>
           <span>{annotationStatus.papers_with_abstract} with abstracts</span>
-          <span className="text-slate-600">|</span>
+          <span className="text-border-strong">|</span>
           <span>{annotationStatus.directions} directions</span>
-          <span className="text-slate-600">|</span>
+          <span className="text-border-strong">|</span>
           <span>{annotationStatus.topics} topics</span>
         </div>
       )}
+
+      <CorpusStudiedPanel />
 
       <TaskProgress
         taskId={activeTaskId}
@@ -173,10 +176,10 @@ export default function DiscoverPage() {
       )}
 
       {selectedTopicId && (
-        <div className="flex justify-end pt-4 border-t border-slate-700">
+        <div className="flex justify-end pt-4 border-t border-border">
           <button
             onClick={handleProceed}
-            className="px-6 py-2.5 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim transition-colors"
+            className="px-6 py-2.5 bg-accent text-text-inverse text-sm font-medium rounded-lg hover:bg-accent-dim transition-colors"
           >
             Continue to References
           </button>

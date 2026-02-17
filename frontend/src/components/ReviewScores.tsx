@@ -35,7 +35,7 @@ export default function ReviewScores({ review }: Props) {
       </div>
 
       {/* Score bars */}
-      <div className="bg-bg-card rounded-lg p-6 border border-slate-700 space-y-4">
+      <div className="bg-bg-card rounded-lg p-6 border border-border space-y-4">
         <h3 className="text-sm font-medium text-text-muted uppercase tracking-wider mb-2">Scores</h3>
         {Object.entries(review.scores).map(([key, val]) => (
           <div key={key}>
@@ -43,7 +43,7 @@ export default function ReviewScores({ review }: Props) {
               <span className="text-xs text-text-secondary">{scoreLabels[key] || key}</span>
               <span className="text-xs font-mono text-text-primary">{val}/5</span>
             </div>
-            <div className="w-full bg-slate-700 rounded-full h-1.5">
+            <div className="w-full bg-gray-100 rounded-full h-1.5">
               <div
                 className={`h-1.5 rounded-full ${val >= 4 ? 'bg-success' : val >= 3 ? 'bg-accent' : val >= 2 ? 'bg-warning' : 'bg-error'}`}
                 style={{ width: `${(val / 5) * 100}%` }}
@@ -55,7 +55,7 @@ export default function ReviewScores({ review }: Props) {
 
       {/* Comments */}
       {review.comments.length > 0 && (
-        <div className="bg-bg-card rounded-lg p-6 border border-slate-700">
+        <div className="bg-bg-card rounded-lg p-6 border border-border">
           <h3 className="text-sm font-medium text-text-muted uppercase tracking-wider mb-3">Comments</h3>
           <ul className="space-y-2">
             {review.comments.map((c, i) => (
@@ -70,7 +70,7 @@ export default function ReviewScores({ review }: Props) {
 
       {/* Revision instructions */}
       {review.revision_instructions.length > 0 && (
-        <div className="bg-bg-card rounded-lg p-6 border border-slate-700">
+        <div className="bg-bg-card rounded-lg p-6 border border-border">
           <h3 className="text-sm font-medium text-text-muted uppercase tracking-wider mb-3">
             Revision Instructions
           </h3>

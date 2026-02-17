@@ -3,12 +3,12 @@
 @tailwind utilities;
 
 :root {
-  --bg-primary: #0f172a;
-  --bg-card: #1e293b;
-  --bg-hover: #334155;
-  --accent: #38bdf8;
-  --text-primary: #e2e8f0;
-  --text-secondary: #94a3b8;
+  --bg-primary: #FAFAF7;
+  --bg-card: #FFFFFF;
+  --bg-hover: #F0F0EB;
+  --accent: #00843D;
+  --text-primary: #1A1A1A;
+  --text-secondary: #4A4A4A;
 }
 
 body {
@@ -21,10 +21,10 @@ body {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg-primary);
+  background: #F0F0EB;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--bg-hover);
+  background: #C8C8C2;
   border-radius: 3px;
 }
 

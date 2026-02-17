@@ -14,8 +14,8 @@ export default function TopicCard({ topic, onSelect, selected }: Props) {
       onClick={() => onSelect(topic.id)}
       className={`text-left w-full p-4 rounded-lg border transition-all ${
         selected
-          ? 'bg-accent/10 border-accent'
-          : 'bg-bg-card border-slate-700 hover:border-slate-600'
+          ? 'bg-accent-light border-accent'
+          : 'bg-bg-card border-border hover:border-border-strong'
       }`}
     >
       <h3 className="font-semibold text-text-primary text-sm mb-1">{topic.title}</h3>

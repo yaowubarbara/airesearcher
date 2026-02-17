@@ -14,9 +14,9 @@ function getStatusBadge(item: TheoryItem) {
     return { label: 'In DB', color: 'text-success bg-success/10' };
   }
   if (item.verified) {
-    return { label: 'Verified', color: 'text-amber-400 bg-amber-400/10' };
+    return { label: 'Verified', color: 'text-warning bg-amber-400/10' };
   }
-  return { label: 'LLM only', color: 'text-text-muted bg-slate-700/50' };
+  return { label: 'LLM only', color: 'text-text-muted bg-gray-50' };
 }
 
 function getSourceLabel(source: string) {
@@ -38,8 +38,8 @@ export default function TheoryPanel({ result }: Props) {
   }
 
   return (
-    <div className="bg-bg-card rounded-lg border border-slate-700 overflow-hidden">
-      <div className="p-4 border-b border-slate-700">
+    <div className="bg-bg-card rounded-lg border border-border overflow-hidden">
+      <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-medium text-text-primary">Theoretical Framework</h4>
           <div className="flex items-center gap-3 text-xs text-text-muted">
@@ -52,7 +52,7 @@ export default function TheoryPanel({ result }: Props) {
         </div>
       </div>
 
-      <div className="divide-y divide-slate-700/50">
+      <div className="divide-y divide-border">
         {result.items.map((item, i) => {
           const badge = getStatusBadge(item);
           return (
@@ -83,7 +83,7 @@ export default function TheoryPanel({ result }: Props) {
       </div>
 
       {result.items.some((i) => i.source === 'llm_only') && (
-        <div className="px-4 py-2 bg-slate-800/50 border-t border-slate-700">
+        <div className="px-4 py-2 bg-gray-50 border-t border-border">
           <p className="text-[10px] text-text-muted">
             Works marked "LLM only" could not be verified via CrossRef/OpenAlex.
             Bibliographic details should be confirmed manually.

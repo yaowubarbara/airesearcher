@@ -58,7 +58,7 @@ export default function ReviewPage() {
           <button
             onClick={startReview}
             disabled={!!activeTaskId || !currentManuscriptId}
-            className="px-4 py-2 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 bg-accent text-text-inverse text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Start Review
           </button>
@@ -74,17 +74,17 @@ export default function ReviewPage() {
       {review ? (
         <>
           <ReviewScores review={review} />
-          <div className="flex justify-between pt-4 border-t border-slate-700">
+          <div className="flex justify-between pt-4 border-t border-border">
             <button
               onClick={() => { setReview(null); startReview(); }}
               disabled={!!activeTaskId}
-              className="px-4 py-2 border border-slate-600 text-text-secondary text-sm rounded-lg hover:bg-bg-hover transition-colors"
+              className="px-4 py-2 border border-border text-text-secondary text-sm rounded-lg hover:bg-bg-hover transition-colors"
             >
               Re-review
             </button>
             <button
               onClick={handleProceed}
-              className="px-6 py-2.5 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim transition-colors"
+              className="px-6 py-2.5 bg-accent text-text-inverse text-sm font-medium rounded-lg hover:bg-accent-dim transition-colors"
             >
               {review.overall_recommendation === 'accept'
                 ? 'Proceed to Submit'

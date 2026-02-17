@@ -293,3 +293,34 @@ export interface AnnotationStatus {
   directions: number;
   topics: number;
 }
+
+export interface CorpusStudiedItem {
+  author: string;
+  works: string[];
+  studied_by: string;
+}
+
+export interface SmartSearchRef {
+  paper_id: string;
+  title: string;
+  authors: string[];
+  year: number;
+  doi?: string;
+  journal: string;
+  category: string;
+  tier: number;
+  usage_note: string;
+  source_phase: string;
+}
+
+export interface SmartSearchResult {
+  blueprint_suggested: number;
+  verified: number;
+  hallucinated: number;
+  expanded_pool: number;
+  final_selected: number;
+  categories: Record<string, number>;
+  tier_counts: Record<number, number>;
+  gaps: string[];
+  references: SmartSearchRef[];
+}

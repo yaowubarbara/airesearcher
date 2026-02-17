@@ -23,7 +23,7 @@ export default function TaskProgress({ taskId, onComplete, label }: Props) {
   const percentage = Math.round(task.progress * 100);
 
   return (
-    <div className="bg-bg-card rounded-lg p-6 border border-slate-700">
+    <div className="bg-bg-card rounded-lg p-6 border border-border">
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm font-medium text-text-primary">
           {label || 'Processing...'}
@@ -31,7 +31,7 @@ export default function TaskProgress({ taskId, onComplete, label }: Props) {
         <span className="text-xs text-text-secondary">{percentage}%</span>
       </div>
 
-      <div className="w-full bg-slate-700 rounded-full h-2 mb-3">
+      <div className="w-full bg-gray-100 rounded-full h-2 mb-3">
         <div
           className="bg-accent h-2 rounded-full transition-all duration-500"
           style={{ width: `${percentage}%` }}

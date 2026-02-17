@@ -28,6 +28,22 @@ _TOPIC_GENERATION_PROMPT = """\
 You are a senior comparatist generating concrete research topics from a \
 broad problématique direction.
 
+DISCIPLINARY CONSTRAINT — COMPARATIVE LITERATURE ONLY:
+Every topic MUST be a comparative literature study.  This means:
+  - It must involve the CLOSE READING of specific literary texts (novels, \
+poetry, drama, essays, literary criticism — NOT policy documents, legal texts, \
+medical records, or social-science data).
+  - It must be COMPARATIVE: juxtaposing at least two literary traditions, \
+languages, periods, or theoretical frameworks.
+  - It must engage recognized literary-critical or theoretical discourse \
+(e.g. narratology, postcolonial theory, translation studies, affect theory, \
+ecocriticism, gender/queer theory, world literature debates).
+  - Do NOT propose topics from political science, international relations, \
+education, public health, urban planning, law, business, computer science, \
+or any non-literary discipline, even if the supporting papers touch on those \
+areas.  If a supporting paper is about supply chains or climate policy, \
+IGNORE IT — extract only the literary-critical thread.
+
 --- DIRECTION ---
 Title: {direction_title}
 Description: {direction_description}
@@ -44,9 +60,12 @@ Dominant gap: {dominant_gap}
 Propose exactly **10** specific, publishable research topics that fall under \
 this direction.  Each topic should:
   - Address the direction's dominant gap type
-  - Be specific enough for a 8000-12000 word journal article
-  - Name concrete texts, authors, or corpora (not vague gestures)
+  - Be specific enough for a 8000-12000 word journal article in a \
+comparative literature journal (e.g. *Comparative Literature*, *PMLA*, \
+*New Literary History*, *Poetics Today*)
+  - Name concrete literary texts, authors, or corpora (not vague gestures)
   - Formulate a clear research question with a falsifiable thesis
+  - Compare across at least two literary traditions, languages, or periods
 
 Return a JSON array of exactly 10 objects with these keys:
   "title": string (concise, max 20 words),

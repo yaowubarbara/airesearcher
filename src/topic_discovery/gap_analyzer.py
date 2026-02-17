@@ -28,7 +28,20 @@ logger = logging.getLogger(__name__)
 
 _ANNOTATION_PROMPT = """\
 You are a senior comparatist performing a structured problématique annotation \
-on a scholarly paper.  Follow these six steps IN ORDER:
+on a scholarly paper.  Follow these six steps IN ORDER.
+
+DISCIPLINARY CONSTRAINT — COMPARATIVE LITERATURE ONLY:
+This annotation must stay within comparative literature as a discipline.  \
+That means:
+  - Tensions must be at the literary-critical CONCEPTUAL level, not at the \
+level of proper nouns, geopolitics, or social phenomena.
+  - Mediators must name specific literary-critical OPERATIONS, not vague \
+thematic labels or field names.
+  - If the paper's subject is non-literary (political science, economics, \
+public health, etc.), extract ONLY whatever literary-critical thread is \
+present; ignore everything else.
+
+---
 
 1. **De-objectification**: If we swapped the text object studied in this paper \
 for a completely different text, what underlying *problem* would remain?  \
@@ -39,11 +52,51 @@ Format each as "A ↔ B" (max 7 words per side).  \
 A tension is NOT a topic; it is a pair of forces, frameworks, or demands \
 pulling in opposite directions.
 
+CRITICAL RULES for Tensions:
+  - NO proper nouns: no person names (Celan, Heidegger, Derrida), no place \
+names (France, Germany, Paris), no country names, no movement labels used as \
+mere flags.
+  - Tensions must be at the LITERARY-CRITICAL CONCEPTUAL level — opposing \
+intellectual forces, not opposing entities or historical actors.
+
+  BAD tensions (NEVER produce these):
+    "France ↔ Germany"
+    "Celan ↔ Heidegger"
+    "colonialism ↔ resistance"
+    "Romanticism ↔ Abolitionism"
+    "East ↔ West"
+    "tradition ↔ modernity"
+  GOOD tensions (aim for this level of abstraction):
+    "aesthetic autonomy ↔ political instrumentalization"
+    "formal experiment ↔ communicative transparency"
+    "textual surface ↔ historical depth"
+    "authorial intention ↔ linguistic undecidability"
+    "untranslatability ↔ universalist reading"
+
 3. **Mediators (M)**: Identify 1–2 operative mechanisms or conceptual mediators \
 that the paper uses (or fails to use) to traverse the tension.  \
-A mediator is NOT a theme; it is a concrete operation or device (e.g. \
-"close-reading of rhythm", "translation as cultural transfer", \
-"institutional gatekeeping").
+A mediator is NOT a theme or a field name; it is a concrete literary-critical \
+OPERATION or DEVICE — something a scholar *does* with texts.
+
+CRITICAL RULES for Mediators:
+  - Each mediator must specify a literary-critical operation with enough \
+detail to distinguish it from a bare keyword.
+  - NO vague single-word topics or field labels.
+
+  BAD mediators (NEVER produce these):
+    "postcolonialism"
+    "feminism"
+    "the archive"
+    "translation"
+    "intertextuality"
+    "memory"
+  GOOD mediators (aim for this level of specificity):
+    "allegorical figuration as ideological mediation"
+    "rhythmic mimesis of bodily experience"
+    "editorial apparatus as canon-construction device"
+    "close-reading of rhythm to expose affective surplus"
+    "translation as cultural transfer across imperial asymmetry"
+    "paratextual framing as interpretive constraint"
 
 4. **Scale (S)**: Determine the dominant scale at which the paper's \
 problematic operates.  Choose exactly ONE from this fixed list:

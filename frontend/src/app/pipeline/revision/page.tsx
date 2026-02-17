@@ -27,7 +27,7 @@ export default function RevisionPage() {
       </div>
 
       {reviewResult && (
-        <div className="bg-bg-card rounded-lg p-6 border border-slate-700">
+        <div className="bg-bg-card rounded-lg p-6 border border-border">
           <h3 className="text-sm font-medium text-text-muted uppercase tracking-wider mb-3">
             Reviewer Recommendation
           </h3>
@@ -51,7 +51,7 @@ export default function RevisionPage() {
         </div>
       )}
 
-      <div className="bg-bg-card rounded-lg p-6 border border-slate-700">
+      <div className="bg-bg-card rounded-lg p-6 border border-border">
         <p className="text-sm text-text-secondary mb-4">
           Automatic revision will re-run the writing agent with review feedback incorporated.
           This may take several minutes.
@@ -59,13 +59,13 @@ export default function RevisionPage() {
         <div className="flex gap-3">
           <button
             disabled
-            className="px-4 py-2 bg-accent text-bg-primary text-sm font-medium rounded-lg opacity-50 cursor-not-allowed"
+            className="px-4 py-2 bg-accent text-text-inverse text-sm font-medium rounded-lg opacity-50 cursor-not-allowed"
           >
             Auto-Revise (Coming Soon)
           </button>
           <button
             onClick={handleSkip}
-            className="px-4 py-2 border border-slate-600 text-text-secondary text-sm rounded-lg hover:bg-bg-hover transition-colors"
+            className="px-4 py-2 border border-border text-text-secondary text-sm rounded-lg hover:bg-bg-hover transition-colors"
           >
             Skip to Submission
           </button>

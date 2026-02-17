@@ -29,11 +29,11 @@ export default function DirectionCard({
   onSelectTopic,
 }: Props) {
   return (
-    <div className="rounded-lg border border-slate-700 bg-bg-card overflow-hidden">
+    <div className="rounded-lg border border-border bg-bg-card overflow-hidden">
       {/* Header */}
       <button
         onClick={onToggle}
-        className="w-full text-left p-5 hover:bg-slate-800/50 transition-colors"
+        className="w-full text-left p-5 hover:bg-gray-50 transition-colors"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
@@ -47,7 +47,7 @@ export default function DirectionCard({
           <div className="flex items-center gap-3 text-xs text-text-muted shrink-0">
             <span>{direction.paper_ids.length} papers</span>
             {direction.recency_score != null && direction.recency_score > 0 && (
-              <span className="px-1.5 py-0.5 rounded bg-cyan-900/40 text-cyan-300 font-medium">
+              <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium">
                 {direction.recency_score.toFixed(2)}
               </span>
             )}
@@ -59,18 +59,18 @@ export default function DirectionCard({
         {/* P-ontology badges */}
         <div className="flex flex-wrap gap-1.5 mt-3">
           {direction.dominant_tensions.map((t, i) => (
-            <Badge key={`t-${i}`} label={t} color="bg-blue-900/40 text-blue-300" />
+            <Badge key={`t-${i}`} label={t} color="bg-blue-50 text-blue-700" />
           ))}
           {direction.dominant_mediators.map((m, i) => (
-            <Badge key={`m-${i}`} label={m} color="bg-purple-900/40 text-purple-300" />
+            <Badge key={`m-${i}`} label={m} color="bg-purple-50 text-purple-700" />
           ))}
           {direction.dominant_scale && (
-            <Badge label={direction.dominant_scale} color="bg-green-900/40 text-green-300" />
+            <Badge label={direction.dominant_scale} color="bg-emerald-50 text-emerald-700" />
           )}
           {direction.dominant_gap && (
             <Badge
               label={direction.dominant_gap.replace(/_/g, ' ')}
-              color="bg-amber-900/40 text-amber-300"
+              color="bg-amber-50 text-amber-700"
             />
           )}
         </div>
@@ -78,7 +78,7 @@ export default function DirectionCard({
 
       {/* Expanded: topic list */}
       {expanded && (
-        <div className="border-t border-slate-700 p-4 space-y-2">
+        <div className="border-t border-border p-4 space-y-2">
           {topics.length === 0 ? (
             <p className="text-sm text-text-muted text-center py-4">
               No topics generated yet.

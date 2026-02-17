@@ -89,7 +89,7 @@ export default function StatsPage() {
 
       {/* By model */}
       {byModel.size > 0 && (
-        <div className="bg-bg-card rounded-lg p-6 border border-slate-700">
+        <div className="bg-bg-card rounded-lg p-6 border border-border">
           <h3 className="text-sm font-medium text-text-muted uppercase tracking-wider mb-4">Usage by Model</h3>
           <div className="space-y-3">
             {Array.from(byModel.entries())
@@ -110,7 +110,7 @@ export default function StatsPage() {
 
       {/* By task */}
       {byTask.size > 0 && (
-        <div className="bg-bg-card rounded-lg p-6 border border-slate-700">
+        <div className="bg-bg-card rounded-lg p-6 border border-border">
           <h3 className="text-sm font-medium text-text-muted uppercase tracking-wider mb-4">Usage by Task</h3>
           <div className="space-y-3">
             {Array.from(byTask.entries())
@@ -134,7 +134,7 @@ export default function StatsPage() {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
+    <div className="bg-bg-card rounded-lg p-5 border border-border">
       <p className="text-xs text-text-muted uppercase tracking-wider">{label}</p>
       <p className="text-2xl font-bold text-text-primary mt-1">{value}</p>
     </div>

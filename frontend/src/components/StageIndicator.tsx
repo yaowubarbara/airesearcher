@@ -16,7 +16,7 @@ export default function StageIndicator() {
           <div key={stage} className="flex items-center">
             <div className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs whitespace-nowrap ${
               isCurrent
-                ? 'bg-accent/10 text-accent font-medium'
+                ? 'bg-accent-light text-accent font-medium'
                 : completed
                 ? 'text-success'
                 : 'text-text-muted'
@@ -25,8 +25,8 @@ export default function StageIndicator() {
                 completed
                   ? 'bg-success/20 text-success'
                   : isCurrent
-                  ? 'bg-accent/20 text-accent'
-                  : 'bg-slate-700 text-text-muted'
+                  ? 'bg-accent-light text-accent'
+                  : 'bg-gray-100 text-text-muted'
               }`}>
                 {completed ? '\u2713' : idx + 1}
               </span>
@@ -34,7 +34,7 @@ export default function StageIndicator() {
             </div>
             {idx < STAGE_ORDER.length - 1 && (
               <div className={`w-4 h-px mx-0.5 ${
-                completed ? 'bg-success/40' : 'bg-slate-700'
+                completed ? 'bg-success/40' : 'bg-gray-100'
               }`} />
             )}
           </div>

@@ -66,7 +66,7 @@ export default function WritePage() {
           <button
             onClick={startWriting}
             disabled={!!activeTaskId || !currentPlanId}
-            className="px-4 py-2 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 bg-accent text-text-inverse text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Start Writing
           </button>
@@ -86,10 +86,10 @@ export default function WritePage() {
       ) : manuscript ? (
         <>
           <ManuscriptViewer manuscript={manuscript} />
-          <div className="flex justify-end pt-4 border-t border-slate-700">
+          <div className="flex justify-end pt-4 border-t border-border">
             <button
               onClick={handleProceed}
-              className="px-6 py-2.5 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim transition-colors"
+              className="px-6 py-2.5 bg-accent text-text-inverse text-sm font-medium rounded-lg hover:bg-accent-dim transition-colors"
             >
               Continue to Review
             </button>
