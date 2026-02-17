@@ -299,17 +299,17 @@ export default function PlanPage() {
           {plan.id && (
             <PlanChat key={chatKey} planId={plan.id} onPlanUpdated={handlePlanRefined} />
           )}
-          <div className="flex justify-between pt-4 border-t border-slate-700">
+          <div className="flex justify-between pt-4 border-t border-border">
             <button
               onClick={() => { setPlan(null); setChatKey((k) => k + 1); }}
               disabled={!!activeTaskId}
-              className="px-4 py-2 border border-slate-600 text-text-secondary text-sm rounded-lg hover:bg-bg-hover transition-colors"
+              className="px-4 py-2 border border-border text-text-secondary text-sm rounded-lg hover:bg-bg-hover transition-colors"
             >
               New Plan
             </button>
             <button
               onClick={handleProceed}
-              className="px-6 py-2.5 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim transition-colors"
+              className="px-6 py-2.5 bg-accent text-text-inverse text-sm font-medium rounded-lg hover:bg-accent-dim transition-colors"
             >
               Approve &amp; Write
             </button>
@@ -327,7 +327,7 @@ export default function PlanPage() {
         /* ============ State A: Pre-synthesis ============ */
         <div className="space-y-6">
           {/* Mode switcher tabs */}
-          <div className="flex border-b border-slate-700">
+          <div className="flex border-b border-border">
             <button
               onClick={() => setMode('topic')}
               disabled={!hasTopicMode}
@@ -376,10 +376,10 @@ export default function PlanPage() {
           {mode === 'topic' && (
             <>
               {topic && (
-                <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
+                <div className="bg-bg-card rounded-lg p-5 border border-border">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-[10px] font-medium text-accent uppercase tracking-wider">Selected Topic</span>
-                    <span className="text-[10px] bg-accent/15 text-accent px-1.5 py-0.5 rounded">active</span>
+                    <span className="text-[10px] bg-accent-light text-accent px-1.5 py-0.5 rounded">active</span>
                   </div>
                   <h4 className="text-sm font-semibold text-text-primary">{topic.title}</h4>
                   <p className="text-xs text-text-secondary mt-1">{topic.research_question}</p>
@@ -387,14 +387,14 @@ export default function PlanPage() {
               )}
 
               {/* Upload & Add References */}
-              <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
+              <div className="bg-bg-card rounded-lg p-5 border border-border">
                 <h3 className="text-sm font-medium text-text-primary mb-3">Upload &amp; Add References</h3>
                 <div className="space-y-4">
                   <UploadZone onUpload={() => triggerReadinessCheck()} />
                   <div className="flex items-center gap-3">
-                    <div className="flex-1 border-t border-slate-700" />
+                    <div className="flex-1 border-t border-border" />
                     <span className="text-xs text-text-muted">or add by metadata</span>
-                    <div className="flex-1 border-t border-slate-700" />
+                    <div className="flex-1 border-t border-border" />
                   </div>
                   <ManualAddForm compact onAdded={() => triggerReadinessCheck()} />
                 </div>
@@ -425,8 +425,8 @@ export default function PlanPage() {
                           onClick={() => selectSession(isSelected ? null : s.id)}
                           className={`w-full text-left rounded-lg p-4 border transition-colors ${
                             isSelected
-                              ? 'border-accent bg-accent/5'
-                              : 'border-slate-700 bg-bg-card hover:border-slate-500'
+                              ? 'border-accent bg-accent-light'
+                              : 'border-border bg-bg-card hover:border-border-strong'
                           }`}
                         >
                           <div className="flex items-start justify-between">
@@ -452,7 +452,7 @@ export default function PlanPage() {
                               )}
                             </div>
                             {isSelected && (
-                              <span className="text-xs bg-accent/15 text-accent px-1.5 py-0.5 rounded flex-shrink-0">
+                              <span className="text-xs bg-accent-light text-accent px-1.5 py-0.5 rounded flex-shrink-0">
                                 selected
                               </span>
                             )}
@@ -465,14 +465,14 @@ export default function PlanPage() {
               )}
 
               {/* Upload & Add References */}
-              <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
+              <div className="bg-bg-card rounded-lg p-5 border border-border">
                 <h3 className="text-sm font-medium text-text-primary mb-3">Upload &amp; Add References</h3>
                 <div className="space-y-4">
                   <UploadZone onUpload={() => triggerReadinessCheck()} />
                   <div className="flex items-center gap-3">
-                    <div className="flex-1 border-t border-slate-700" />
+                    <div className="flex-1 border-t border-border" />
                     <span className="text-xs text-text-muted">or add by metadata</span>
-                    <div className="flex-1 border-t border-slate-700" />
+                    <div className="flex-1 border-t border-border" />
                   </div>
                   <ManualAddForm compact onAdded={() => triggerReadinessCheck()} />
                 </div>
@@ -499,7 +499,7 @@ export default function PlanPage() {
           {/* ============ FROM CORPUS mode ============ */}
           {mode === 'corpus' && (
             <div className="space-y-4">
-              <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
+              <div className="bg-bg-card rounded-lg p-5 border border-border">
                 <h3 className="text-sm font-medium text-text-primary mb-1">Upload Your Corpus</h3>
                 <p className="text-xs text-text-secondary mb-4">
                   Upload PDFs directly. The system will auto-generate a problematique and research plan from your corpus.
@@ -507,15 +507,15 @@ export default function PlanPage() {
                 <UploadZone onUpload={handleCorpusUpload} />
 
                 <div className="flex items-center gap-3 my-4">
-                  <div className="flex-1 border-t border-slate-700" />
+                  <div className="flex-1 border-t border-border" />
                   <span className="text-xs text-text-muted">or add by DOI</span>
-                  <div className="flex-1 border-t border-slate-700" />
+                  <div className="flex-1 border-t border-border" />
                 </div>
                 <ManualAddForm compact onAdded={handleCorpusManualAdd} />
               </div>
 
               {uploadedPaperIds.length > 0 && (
-                <div className="bg-bg-card rounded-lg p-4 border border-slate-700 flex items-center justify-between">
+                <div className="bg-bg-card rounded-lg p-4 border border-border flex items-center justify-between">
                   <span className="text-sm text-text-primary">
                     <span className="font-medium text-accent">{uploadedPaperIds.length}</span>
                     {' '}paper{uploadedPaperIds.length !== 1 ? 's' : ''} in corpus
@@ -534,7 +534,7 @@ export default function PlanPage() {
           {/* ============ CUSTOM TOPIC mode ============ */}
           {mode === 'custom' && (
             <div className="space-y-4">
-              <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
+              <div className="bg-bg-card rounded-lg p-5 border border-border">
                 <h3 className="text-sm font-medium text-text-primary mb-1">Define Your Topic</h3>
                 <p className="text-xs text-text-secondary mb-4">
                   Enter your research topic directly. Optionally link a search session to ground the plan in collected references.
@@ -548,7 +548,7 @@ export default function PlanPage() {
                     <select
                       value={customSessionId || ''}
                       onChange={(e) => setCustomSessionId(e.target.value || null)}
-                      className="w-full px-3 py-2 bg-bg-primary border border-slate-600 rounded-lg text-sm text-text-primary focus:outline-none focus:border-accent"
+                      className="w-full px-3 py-2 bg-bg-primary border border-border rounded-lg text-sm text-text-primary focus:outline-none focus:border-accent"
                     >
                       <option value="">No linked session</option>
                       {sessions.map((s) => (
@@ -562,7 +562,7 @@ export default function PlanPage() {
               </div>
 
               {!selectedJournal ? (
-                <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
+                <div className="bg-bg-card rounded-lg p-5 border border-border">
                   <p className="text-xs text-warning">Select a journal first (Journal stage).</p>
                 </div>
               ) : (
@@ -578,7 +578,7 @@ export default function PlanPage() {
 
           {/* Status + Create button — sufficiency gate */}
           {!isSynthesizing && mode !== 'custom' && (
-            <div className="bg-bg-card rounded-lg p-5 border border-slate-700">
+            <div className="bg-bg-card rounded-lg p-5 border border-border">
               {basisLabel ? (
                 <p className="text-sm text-text-secondary mb-4">
                   Plan will be based on: <span className="text-text-primary font-medium">{basisLabel}</span>
@@ -597,7 +597,7 @@ export default function PlanPage() {
                 <button
                   onClick={handleSynthesizeFromCorpus}
                   disabled={!!synthesizeTaskId || !canCreateCorpus}
-                  className="px-5 py-2.5 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-5 py-2.5 bg-accent text-text-inverse text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Synthesize Topic
                 </button>
@@ -613,7 +613,7 @@ export default function PlanPage() {
                       <button
                         onClick={triggerReadinessCheck}
                         disabled={!!synthesizeTaskId || readinessLoading}
-                        className="px-5 py-2.5 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="px-5 py-2.5 bg-accent text-text-inverse text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         Re-check Readiness
                       </button>
@@ -630,7 +630,7 @@ export default function PlanPage() {
                   <button
                     onClick={handleSynthesizeFromSession}
                     disabled={!!synthesizeTaskId || !canCreateSession}
-                    className="px-5 py-2.5 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="px-5 py-2.5 bg-accent text-text-inverse text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     Synthesize Topic
                   </button>
@@ -648,7 +648,7 @@ export default function PlanPage() {
                       <button
                         onClick={triggerReadinessCheck}
                         disabled={readinessLoading}
-                        className="px-5 py-2.5 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="px-5 py-2.5 bg-accent text-text-inverse text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         Re-check Readiness
                       </button>
@@ -665,7 +665,7 @@ export default function PlanPage() {
                   <button
                     onClick={handleReviewTopic}
                     disabled={!canCreateTopic}
-                    className="px-5 py-2.5 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="px-5 py-2.5 bg-accent text-text-inverse text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     Review Topic
                   </button>

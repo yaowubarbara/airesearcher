@@ -143,12 +143,12 @@ export default function ManualAddForm({
             onChange={(e) => setDoiInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleDoiLookup()}
             placeholder="DOI (e.g. 10.1234/...)"
-            className="flex-1 bg-bg-primary border border-slate-600 rounded px-2 py-1 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+            className="flex-1 bg-bg-primary border border-border rounded px-2 py-1 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
           />
           <button
             onClick={handleDoiLookup}
             disabled={doiLoading || !doiInput.trim()}
-            className="px-2 py-1 bg-accent text-bg-primary text-xs rounded hover:bg-accent-dim disabled:opacity-50 transition-colors"
+            className="px-2 py-1 bg-accent text-text-inverse text-xs rounded hover:bg-accent-dim disabled:opacity-50 transition-colors"
           >
             {doiLoading ? '...' : 'DOI'}
           </button>
@@ -156,28 +156,28 @@ export default function ManualAddForm({
             <button
               onClick={handleCrossRefSearch}
               disabled={searchLoading}
-              className="px-2 py-1 border border-slate-600 text-text-secondary text-xs rounded hover:bg-bg-hover disabled:opacity-50 transition-colors"
+              className="px-2 py-1 border border-border text-text-secondary text-xs rounded hover:bg-bg-hover disabled:opacity-50 transition-colors"
             >
               {searchLoading ? '...' : 'Find'}
             </button>
           )}
           <button
             onClick={() => setShowFullForm(!showFullForm)}
-            className="px-2 py-1 border border-slate-600 text-text-secondary text-xs rounded hover:bg-bg-hover transition-colors"
+            className="px-2 py-1 border border-border text-text-secondary text-xs rounded hover:bg-bg-hover transition-colors"
           >
             {showFullForm ? 'Less' : 'Manual'}
           </button>
         </div>
 
         {doiResult && (
-          <p className={`text-[11px] ${doiResult.startsWith('Error') ? 'text-red-400' : 'text-success'}`}>
+          <p className={`text-[11px] ${doiResult.startsWith('Error') ? 'text-error' : 'text-success'}`}>
             {doiResult}
           </p>
         )}
 
         {/* CrossRef search results */}
         {showSearch && (
-          <div className="border border-slate-600 rounded bg-bg-primary max-h-40 overflow-y-auto">
+          <div className="border border-border rounded bg-bg-primary max-h-40 overflow-y-auto">
             {searchLoading ? (
               <div className="p-2 text-xs text-text-muted">Searching CrossRef...</div>
             ) : searchResults.length === 0 ? (
@@ -187,7 +187,7 @@ export default function ManualAddForm({
                 <button
                   key={i}
                   onClick={() => handleSelectCrossRef(m)}
-                  className="w-full text-left p-2 hover:bg-bg-hover border-b border-slate-700 last:border-0 transition-colors"
+                  className="w-full text-left p-2 hover:bg-bg-hover border-b border-border last:border-0 transition-colors"
                 >
                   <p className="text-xs text-text-primary truncate">{m.title}</p>
                   <p className="text-[10px] text-text-muted">
@@ -208,14 +208,14 @@ export default function ManualAddForm({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Title"
-              className="w-full bg-bg-primary border border-slate-600 rounded px-2 py-1 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+              className="w-full bg-bg-primary border border-border rounded px-2 py-1 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
             />
             <input
               type="text"
               value={authors}
               onChange={(e) => setAuthors(e.target.value)}
               placeholder="Authors (comma-separated)"
-              className="w-full bg-bg-primary border border-slate-600 rounded px-2 py-1 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+              className="w-full bg-bg-primary border border-border rounded px-2 py-1 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
             />
             <div className="flex gap-1.5">
               <input
@@ -223,21 +223,21 @@ export default function ManualAddForm({
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
                 placeholder="Year"
-                className="w-20 bg-bg-primary border border-slate-600 rounded px-2 py-1 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+                className="w-20 bg-bg-primary border border-border rounded px-2 py-1 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
               />
               <input
                 type="text"
                 value={journal}
                 onChange={(e) => setJournal(e.target.value)}
                 placeholder="Journal"
-                className="flex-1 bg-bg-primary border border-slate-600 rounded px-2 py-1 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+                className="flex-1 bg-bg-primary border border-border rounded px-2 py-1 text-xs text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
               />
             </div>
             <div className="flex gap-1.5">
               <select
                 value={refType}
                 onChange={(e) => setRefType(e.target.value)}
-                className="flex-1 bg-bg-primary border border-slate-600 rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent"
+                className="flex-1 bg-bg-primary border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent"
               >
                 {REF_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
@@ -246,13 +246,13 @@ export default function ManualAddForm({
               <button
                 onClick={handleManualSubmit}
                 disabled={formLoading || !title.trim()}
-                className="px-3 py-1 bg-accent text-bg-primary text-xs rounded hover:bg-accent-dim disabled:opacity-50 transition-colors"
+                className="px-3 py-1 bg-accent text-text-inverse text-xs rounded hover:bg-accent-dim disabled:opacity-50 transition-colors"
               >
                 {formLoading ? '...' : 'Add'}
               </button>
             </div>
             {formResult && (
-              <p className={`text-[11px] ${formResult.startsWith('Error') ? 'text-red-400' : 'text-success'}`}>
+              <p className={`text-[11px] ${formResult.startsWith('Error') ? 'text-error' : 'text-success'}`}>
                 {formResult}
               </p>
             )}
@@ -277,18 +277,18 @@ export default function ManualAddForm({
             onChange={(e) => setDoiInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleDoiLookup()}
             placeholder="Enter DOI (e.g. 10.1234/example)"
-            className="flex-1 bg-bg-primary border border-slate-600 rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+            className="flex-1 bg-bg-primary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
           />
           <button
             onClick={handleDoiLookup}
             disabled={doiLoading || !doiInput.trim()}
-            className="px-4 py-2 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 transition-colors"
+            className="px-4 py-2 bg-accent text-text-inverse text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 transition-colors"
           >
             {doiLoading ? 'Looking up...' : 'Lookup DOI'}
           </button>
         </div>
         {doiResult && (
-          <p className={`text-xs mt-1.5 ${doiResult.startsWith('Error') ? 'text-red-400' : 'text-success'}`}>
+          <p className={`text-xs mt-1.5 ${doiResult.startsWith('Error') ? 'text-error' : 'text-success'}`}>
             {doiResult}
           </p>
         )}
@@ -296,9 +296,9 @@ export default function ManualAddForm({
 
       {/* Separator */}
       <div className="flex items-center gap-3">
-        <div className="flex-1 border-t border-slate-700" />
+        <div className="flex-1 border-t border-border" />
         <span className="text-xs text-text-muted">or enter details manually</span>
-        <div className="flex-1 border-t border-slate-700" />
+        <div className="flex-1 border-t border-border" />
       </div>
 
       {/* Manual form */}
@@ -311,13 +311,13 @@ export default function ManualAddForm({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Full title of the work"
-              className="flex-1 bg-bg-primary border border-slate-600 rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+              className="flex-1 bg-bg-primary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
             />
             {title.trim() && (
               <button
                 onClick={handleCrossRefSearch}
                 disabled={searchLoading}
-                className="px-3 py-2 border border-slate-600 text-text-secondary text-sm rounded-lg hover:bg-bg-hover disabled:opacity-50 transition-colors whitespace-nowrap"
+                className="px-3 py-2 border border-border text-text-secondary text-sm rounded-lg hover:bg-bg-hover disabled:opacity-50 transition-colors whitespace-nowrap"
               >
                 {searchLoading ? 'Searching...' : 'Find on CrossRef'}
               </button>
@@ -327,7 +327,7 @@ export default function ManualAddForm({
 
         {/* CrossRef search results */}
         {showSearch && (
-          <div className="border border-slate-600 rounded-lg bg-bg-primary max-h-48 overflow-y-auto">
+          <div className="border border-border rounded-lg bg-bg-primary max-h-48 overflow-y-auto">
             {searchLoading ? (
               <div className="p-3 text-sm text-text-muted">Searching CrossRef...</div>
             ) : searchResults.length === 0 ? (
@@ -337,7 +337,7 @@ export default function ManualAddForm({
                 <button
                   key={i}
                   onClick={() => handleSelectCrossRef(m)}
-                  className="w-full text-left p-3 hover:bg-bg-hover border-b border-slate-700 last:border-0 transition-colors"
+                  className="w-full text-left p-3 hover:bg-bg-hover border-b border-border last:border-0 transition-colors"
                 >
                   <p className="text-sm text-text-primary">{m.title}</p>
                   <p className="text-xs text-text-muted mt-0.5">
@@ -361,7 +361,7 @@ export default function ManualAddForm({
               value={authors}
               onChange={(e) => setAuthors(e.target.value)}
               placeholder="Author 1, Author 2"
-              className="w-full mt-1 bg-bg-primary border border-slate-600 rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+              className="w-full mt-1 bg-bg-primary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
             />
           </div>
           <div>
@@ -371,7 +371,7 @@ export default function ManualAddForm({
               value={year}
               onChange={(e) => setYear(e.target.value)}
               placeholder="2024"
-              className="w-full mt-1 bg-bg-primary border border-slate-600 rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+              className="w-full mt-1 bg-bg-primary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
             />
           </div>
         </div>
@@ -384,7 +384,7 @@ export default function ManualAddForm({
               value={journal}
               onChange={(e) => setJournal(e.target.value)}
               placeholder="Journal name"
-              className="w-full mt-1 bg-bg-primary border border-slate-600 rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+              className="w-full mt-1 bg-bg-primary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
             />
           </div>
           <div>
@@ -394,7 +394,7 @@ export default function ManualAddForm({
               value={doi}
               onChange={(e) => setDoi(e.target.value)}
               placeholder="10.1234/..."
-              className="w-full mt-1 bg-bg-primary border border-slate-600 rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
+              className="w-full mt-1 bg-bg-primary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent"
             />
           </div>
         </div>
@@ -405,7 +405,7 @@ export default function ManualAddForm({
             <select
               value={refType}
               onChange={(e) => setRefType(e.target.value)}
-              className="w-full mt-1 bg-bg-primary border border-slate-600 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
+              className="w-full mt-1 bg-bg-primary border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent"
             >
               {REF_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -416,7 +416,7 @@ export default function ManualAddForm({
             <button
               onClick={handleManualSubmit}
               disabled={formLoading || !title.trim()}
-              className="px-5 py-2 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 transition-colors"
+              className="px-5 py-2 bg-accent text-text-inverse text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 transition-colors"
             >
               {formLoading ? 'Adding...' : 'Add Reference'}
             </button>
@@ -424,7 +424,7 @@ export default function ManualAddForm({
         </div>
 
         {formResult && (
-          <p className={`text-xs ${formResult.startsWith('Error') ? 'text-red-400' : 'text-success'}`}>
+          <p className={`text-xs ${formResult.startsWith('Error') ? 'text-error' : 'text-success'}`}>
             {formResult}
           </p>
         )}

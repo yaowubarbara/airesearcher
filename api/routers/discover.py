@@ -189,6 +189,13 @@ async def get_direction_with_topics(direction_id: str, db=Depends(get_db)):
     }
 
 
+@router.get("/corpus-studied")
+async def get_corpus_studied():
+    """Return authors and works already studied in the corpus papers."""
+    from api.corpus_data import CORPUS_STUDIED
+    return {"items": CORPUS_STUDIED}
+
+
 @router.get("/topics")
 async def list_topics(status: Optional[str] = None, direction_id: Optional[str] = None, limit: int = 20, db=Depends(get_db)):
     if direction_id:

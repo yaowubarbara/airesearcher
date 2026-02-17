@@ -50,8 +50,8 @@ export default function UploadZone({ onUpload, sessionId }: Props) {
         onClick={() => inputRef.current?.click()}
         className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${
           dragOver
-            ? 'border-accent bg-accent/5'
-            : 'border-slate-600 hover:border-slate-500'
+            ? 'border-accent bg-accent-light'
+            : 'border-border hover:border-border-strong'
         }`}
       >
         <input

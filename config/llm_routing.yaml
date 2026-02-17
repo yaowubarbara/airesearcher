@@ -112,6 +112,22 @@ routing:
     temperature: 0.0
     max_tokens: 8000
 
+  # Smart reference blueprint (domain knowledge)
+  reference_blueprint:
+    primary: openrouter/google/gemini-2.5-flash
+    fallback: openrouter/meta-llama/llama-3.3-70b-instruct
+    provider: openrouter
+    temperature: 0.4
+    max_tokens: 8000
+
+  # Smart reference curation (selection + categorization)
+  reference_curation:
+    primary: openrouter/google/gemini-2.5-flash
+    fallback: openrouter/meta-llama/llama-3.3-70b-instruct
+    provider: openrouter
+    temperature: 0.2
+    max_tokens: 8000
+
   # Cover letter / response to reviewers
   correspondence:
     primary: openrouter/google/gemini-2.5-flash

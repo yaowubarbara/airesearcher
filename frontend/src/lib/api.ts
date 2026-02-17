@@ -37,6 +37,9 @@ export const api = {
       `/topics?limit=${limit}${status ? `&status=${status}` : ''}${directionId ? `&direction_id=${directionId}` : ''}`
     ),
 
+  getCorpusStudied: () =>
+    request<{ items: import('./types').CorpusStudiedItem[] }>('/corpus-studied'),
+
   // References
   searchReferences: (topic: string, maxResults = 50) =>
     request<{ task_id: string }>('/references/search', {
@@ -83,6 +86,16 @@ export const api = {
     request<{ results: import('./types').CrossRefMatch[]; total: number }>('/references/crossref-search', {
       method: 'POST',
       body: JSON.stringify({ query, rows }),
+    }),
+  smartSearchReferences: (title: string, researchQuestion: string, gapDescription: string, targetCount = 50) =>
+    request<{ task_id: string }>('/references/smart-search', {
+      method: 'POST',
+      body: JSON.stringify({
+        title,
+        research_question: researchQuestion,
+        gap_description: gapDescription,
+        target_count: targetCount,
+      }),
     }),
 
   // Plan

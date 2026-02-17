@@ -13,6 +13,13 @@ router = APIRouter(tags=["references"])
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "papers"
 
 
+class SmartSearchRequest(BaseModel):
+    title: str
+    research_question: str
+    gap_description: str
+    target_count: int = 50
+
+
 class SearchRequest(BaseModel):
     topic: str
     max_results: int = 50
@@ -357,6 +364,64 @@ async def crossref_search(req: CrossRefSearchRequest):
         })
 
     return {"results": matches, "total": len(matches)}
+
+
+@router.post("/references/smart-search")
+async def smart_search_references(
+    req: SmartSearchRequest,
+    db=Depends(get_db),
+    vs=Depends(get_vs),
+    llm=Depends(get_router),
+    tm=Depends(get_task_manager),
+):
+    """Smart reference search: LLM blueprint -> verify -> expand -> curate."""
+    async def run_smart(task_mgr, task_id):
+        import sys
+        from pathlib import Path as P
+        PROJECT_ROOT = P(__file__).resolve().parent.parent.parent
+        if str(PROJECT_ROOT) not in sys.path:
+            sys.path.insert(0, str(PROJECT_ROOT))
+        from src.reference_acquisition.smart_search import SmartReferencePipeline
+
+        async def on_progress(frac: float, msg: str) -> None:
+            await task_mgr.update_progress(task_id, frac, msg)
+
+        pipeline = SmartReferencePipeline(db=db, vector_store=vs, llm_router=llm)
+        report = await pipeline.run(
+            title=req.title,
+            research_question=req.research_question,
+            gap_description=req.gap_description,
+            target_count=req.target_count,
+            progress_callback=on_progress,
+        )
+        return {
+            "blueprint_suggested": report.blueprint_suggested,
+            "verified": report.verified,
+            "hallucinated": report.hallucinated,
+            "expanded_pool": report.expanded_pool,
+            "final_selected": report.final_selected,
+            "categories": report.categories,
+            "tier_counts": report.tier_counts,
+            "gaps": report.gaps,
+            "references": [
+                {
+                    "paper_id": r.paper.id,
+                    "title": r.paper.title,
+                    "authors": r.paper.authors,
+                    "year": r.paper.year,
+                    "doi": r.paper.doi,
+                    "journal": r.paper.journal,
+                    "category": r.category,
+                    "tier": r.tier,
+                    "usage_note": r.usage_note,
+                    "source_phase": r.source_phase,
+                }
+                for r in report.references
+            ],
+        }
+
+    task_id = tm.create_task("smart_search", run_smart)
+    return {"task_id": task_id}
 
 
 @router.get("/references/sessions/{session_id}/papers")

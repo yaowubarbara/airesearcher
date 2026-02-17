@@ -31,18 +31,18 @@ export default function Sidebar() {
   const { completedStages, isStageUnlocked, selectedJournal } = usePipelineStore();
 
   return (
-    <aside className="w-64 bg-bg-card border-r border-slate-700 h-screen sticky top-0 flex flex-col">
-      <div className="p-5 border-b border-slate-700">
+    <aside className="w-64 bg-sidebar-bg border-r border-sidebar-border h-screen sticky top-0 flex flex-col">
+      <div className="p-5 border-b border-sidebar-border">
         <Link href="/" className="block">
           <h1 className="text-lg font-bold text-accent">AI Researcher</h1>
-          <p className="text-xs text-text-secondary mt-1">Academic Paper Pipeline</p>
+          <p className="text-xs text-sidebar-muted mt-1">Academic Paper Pipeline</p>
         </Link>
       </div>
 
       {selectedJournal && (
-        <div className="px-5 py-3 border-b border-slate-700">
-          <p className="text-xs text-text-muted uppercase tracking-wider">Target Journal</p>
-          <p className="text-sm text-text-primary font-medium mt-1 truncate">{selectedJournal}</p>
+        <div className="px-5 py-3 border-b border-sidebar-border">
+          <p className="text-xs text-sidebar-muted uppercase tracking-wider">Target Journal</p>
+          <p className="text-sm text-sidebar-text font-medium mt-1 truncate">{selectedJournal}</p>
         </div>
       )}
 
@@ -61,18 +61,18 @@ export default function Sidebar() {
                 isActive
                   ? 'bg-accent/10 text-accent border-r-2 border-accent'
                   : unlocked
-                  ? 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
-                  : 'text-text-muted cursor-not-allowed opacity-40'
+                  ? 'text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-text'
+                  : 'text-sidebar-muted cursor-not-allowed opacity-40'
               }`}
               onClick={(e) => !unlocked && e.preventDefault()}
             >
               <span
                 className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                   completed
-                    ? 'bg-success/20 text-success'
+                    ? 'bg-emerald-400/20 text-emerald-300'
                     : isActive
                     ? 'bg-accent/20 text-accent'
-                    : 'bg-slate-700 text-text-muted'
+                    : 'bg-sidebar-border text-sidebar-muted'
                 }`}
               >
                 {completed ? '\u2713' : stageIcons[stage]}
@@ -83,13 +83,13 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-slate-700">
+      <div className="p-4 border-t border-sidebar-border">
         <Link
           href="/stats"
           className={`flex items-center gap-2 text-sm px-2 py-1.5 rounded transition-colors ${
             pathname === '/stats'
               ? 'text-accent'
-              : 'text-text-secondary hover:text-text-primary'
+              : 'text-sidebar-muted hover:text-sidebar-text'
           }`}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

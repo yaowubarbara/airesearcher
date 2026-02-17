@@ -8,8 +8,8 @@
   4. The link must point to **this project's** frontend (ai-researcher), not any other service
 
 ## Current Status
-- Phase: 14 (Discovery Refactor: Problématique Ontology) — COMPLETE
-- Last completed: P-ontology annotation, direction clustering, topic generation, two-level frontend
+- Phase: 15 (Smart Reference Pipeline) — COMPLETE
+- Last completed: LLM blueprint → API verify → citation chain → LLM curate pipeline
 - Currently working on: Nothing
 - Blockers: None
 
@@ -47,7 +47,9 @@
 - [x] **config/citation_profiles/comparative_literature.yaml** (citation norms from 6-article analysis)
 - [x] **citation_verifier/** (parser, engine, annotator, pipeline — MLA citation parsing + CrossRef/OpenAlex verification + [VERIFY] tags)
 - [x] **Web frontend** — Next.js + FastAPI: ReadinessPanel (upload + re-check), PlanOutline (per-section grounding), PlanChat, sufficiency gate, **DirectionCard** (two-level discover)
-- [x] tests/ (15 test files, 510 unit tests total)
+- [x] **reference_acquisition/smart_search.py** (SmartReferencePipeline: 4-phase LLM blueprint → verify → cite chain → curate)
+- [x] **reference_acquisition/citation_chain.py** (CitationChainMiner: backward/forward/author/journal expansion via OpenAlex)
+- [x] tests/ (16 test files, 568 unit tests total)
 - [x] **tests/test_llm_pipeline.py** (5 LLM pipeline tests: discover, plan, write, review, full chain)
 - [x] **tests/test_citation_profile.py** (34 tests: profile loading, ReferenceType, DB, classification, balance)
 - [x] **tests/test_citation_phase10.py** (54 tests: Phase 10 citation features end-to-end)
@@ -55,6 +57,48 @@
 - [x] **tests/test_citation_verifier.py** (64 tests: parser, engine, annotator, report, pipeline)
 - [x] **tests/test_primary_text_detection.py** (36 tests: title extraction, Jaccard overlap, models, detection with mocked DB/VS, DB title search)
 - [x] **tests/test_problematique.py** (41 tests: P-ontology enums, models, DB annotations/directions/topics, annotation pipeline, clustering, generation, row converters, parse helpers)
+- [x] **tests/test_smart_search.py** (50 tests: citation chain, blueprint, verification, curation, persist, full flow, helpers)
+
+## Phase 15 — Smart Reference Pipeline (COMPLETE)
+- [x] `src/reference_acquisition/citation_chain.py` — `CitationChainMiner`:
+  - `get_references_of()` — backward chain via OpenAlex referenced_works
+  - `get_citing_works()` — forward chain via OpenAlex cites: filter
+  - `get_author_works()` — author chain via OpenAlex author search → works
+  - `search_in_journal()` — journal-specific search via OpenAlex source filter
+  - `expand_from_seeds()` — full expansion with DOI deduplication and max_total limit
+- [x] `src/reference_acquisition/smart_search.py` — `SmartReferencePipeline`:
+  - Phase 1: `_generate_blueprint()` — LLM generates 5-8 category bibliography plan
+  - Phase 2: `_verify_references()` — CrossRef + OpenAlex verification with Jaccard ≥0.5
+  - Phase 3: `_expand_citations()` — citation chain expansion from verified seeds
+  - Phase 4: `_curate_references()` — LLM selects final N refs with categories/tiers/usage
+  - Phase 5: `_persist_results()` — insert to DB with DOI dedup
+  - Dataclasses: `BlueprintCategory`, `BlueprintResult`, `VerifiedRef`, `CuratedRef`, `SmartSearchReport`
+- [x] `prompts/reference_blueprint.md` — Phase 1 prompt (5-8 categories, suggested refs, queries, authors, journals)
+- [x] `prompts/reference_curation.md` — Phase 4 prompt (select N, assign category/tier/usage, identify gaps)
+- [x] `src/utils/api_clients.py` — added 5 OpenAlex methods:
+  - `get_work_references()`, `get_citing_works()`, `search_author()`, `get_author_works()`, `search_works_in_journal()`
+- [x] `config/llm_routing.yaml` — added `reference_blueprint` (temp 0.4) and `reference_curation` (temp 0.2)
+- [x] `api/routers/references.py` — `POST /references/smart-search` endpoint with background task
+- [x] `frontend/src/lib/api.ts` — `smartSearchReferences()` API call
+- [x] `frontend/src/lib/types.ts` — `SmartSearchRef`, `SmartSearchResult` interfaces
+- [x] `frontend/src/app/pipeline/references/page.tsx` — Smart Search form with collapsible UI, results table with tier badges, category breakdown, gap warnings
+- [x] `tests/test_smart_search.py` — 50 tests:
+  - **TestExtractWorkMetadata** (4): full/minimal/doi/empty authorships
+  - **TestJaccardWordOverlap** (5): identical, no overlap, partial, empty, case-insensitive
+  - **TestParseJsonFromLlm** (5): plain, markdown fences, generic fences, invalid, array
+  - **TestCandidateToPaper** (3): full, minimal, authors-as-string
+  - **TestBlueprintResult** (4): total_suggested, dedup authors, dedup journals, empty
+  - **TestSmartSearchReport** (2): summary, defaults
+  - **TestCitationChainMiner** (9): backward/forward/author/journal chains, not found, expand empty/dedup/max_total
+  - **TestGenerateBlueprint** (2): valid/empty
+  - **TestVerifyReferences** (5): crossref match, openalex fallback, no match, empty title, low similarity
+  - **TestCurateReferences** (3): valid, invalid JSON fallback, out-of-range index
+  - **TestPersistResults** (2): insert new, dedup by DOI
+  - **TestSmartSearchFullFlow** (1): end-to-end mocked
+  - **TestDataclasses** (3): defaults for VerifiedRef, CuratedRef, SmartSearchReport
+  - **TestCrossRefItemToPaper** (2): full/minimal
+- [x] All 568 unit tests pass (50 new + 518 existing), 0 regressions
+- [x] TypeScript compiles cleanly (`npx tsc --noEmit`)
 
 ## Phase 6 — Reference Acquisition Pipeline (COMPLETE)
 - [x] Paper model + DB: added `pdf_url` field, migration, `update_paper_pdf()`, `get_papers_needing_pdf()`
@@ -393,7 +437,8 @@ User selects topic → proceeds to References
 - `tests/test_citation_verifier.py` — 64 tests (Phase 11: MLA parser, page range validation, annotation, report, engine verify, search methods, pipeline)
 - `tests/test_primary_text_detection.py` — 36 tests (Phase 12: title extraction, Jaccard overlap, models, detection with mocked DB/VS, DB title search)
 - `tests/test_problematique.py` — 41 tests (Phase 14: P-ontology enums, models, DB annotations/directions/topics, annotation pipeline, clustering, generation, row converters, parse helpers)
-- **Total: 510 unit tests + 5 LLM pipeline tests, all passing (LLM tests skip without ZHIPUAI_API_KEY)**
+- `tests/test_smart_search.py` — 50 tests (Phase 15: citation chain, blueprint, verification, curation, persist, full flow, helpers)
+- **Total: 568 unit tests + 5 LLM pipeline tests, all passing (LLM tests skip without ZHIPUAI_API_KEY)**
 
 ## Key Decisions
 - LiteLLM as unified LLM gateway (see decisions.md #001)

@@ -110,8 +110,8 @@ export default function PlanChat({ planId, onPlanUpdated }: Props) {
   };
 
   return (
-    <div className="bg-bg-card rounded-lg border border-slate-700 overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-700">
+    <div className="bg-bg-card rounded-lg border border-border overflow-hidden">
+      <div className="px-4 py-3 border-b border-border">
         <h3 className="text-sm font-medium text-text-muted uppercase tracking-wider">
           Refine Plan
         </h3>
@@ -127,10 +127,10 @@ export default function PlanChat({ planId, onPlanUpdated }: Props) {
             <div
               className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
                 msg.role === 'user'
-                  ? 'bg-accent/15 text-text-primary'
+                  ? 'bg-accent-light text-text-primary'
                   : msg.role === 'system'
-                    ? 'bg-slate-700/50 text-text-muted italic'
-                    : 'bg-slate-700/80 text-text-secondary'
+                    ? 'bg-gray-50 text-text-muted italic'
+                    : 'bg-gray-200 text-text-secondary'
               }`}
             >
               {msg.content}
@@ -141,7 +141,7 @@ export default function PlanChat({ planId, onPlanUpdated }: Props) {
         {/* Thinking indicator */}
         {refineTaskId && task && task.status !== 'completed' && task.status !== 'failed' && (
           <div className="flex justify-start">
-            <div className="bg-slate-700/80 rounded-lg px-3 py-2 text-sm text-text-muted flex items-center gap-2">
+            <div className="bg-gray-200 rounded-lg px-3 py-2 text-sm text-text-muted flex items-center gap-2">
               <div className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
               <span>{task.message || 'Refining plan...'}</span>
             </div>
@@ -152,7 +152,7 @@ export default function PlanChat({ planId, onPlanUpdated }: Props) {
       </div>
 
       {/* Input bar */}
-      <div className="border-t border-slate-700 px-4 py-3 flex gap-2">
+      <div className="border-t border-border px-4 py-3 flex gap-2">
         <input
           type="text"
           value={input}
@@ -160,12 +160,12 @@ export default function PlanChat({ planId, onPlanUpdated }: Props) {
           onKeyDown={handleKeyDown}
           placeholder="Describe changes to the plan..."
           disabled={!!refineTaskId}
-          className="flex-1 bg-bg-primary border border-slate-600 rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent disabled:opacity-50"
+          className="flex-1 bg-bg-primary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent disabled:opacity-50"
         />
         <button
           onClick={handleSubmit}
           disabled={!input.trim() || !!refineTaskId}
-          className="px-4 py-2 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 bg-accent text-text-inverse text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           Send
         </button>

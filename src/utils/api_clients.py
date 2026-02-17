@@ -176,6 +176,60 @@ class OpenAlexClient(APIClient):
     async def get_work(self, work_id: str) -> dict:
         return await self.get(f"/works/{work_id}")
 
+    async def get_work_references(self, work_id: str, limit: int = 50) -> list[dict]:
+        """Get works referenced by this work (backward citations).
+
+        Fetches the work, extracts referenced_works IDs, batch-fetches metadata.
+        """
+        work = await self.get_work(work_id)
+        ref_ids = work.get("referenced_works", [])[:limit]
+        if not ref_ids:
+            return []
+        # Batch fetch: filter=openalex_id:W123|W456|W789
+        id_filter = "|".join(ref_ids)
+        result = await self.get("/works", params={
+            "filter": f"openalex_id:{id_filter}",
+            "per_page": limit,
+            "select": "id,title,authorships,publication_year,primary_location,doi,cited_by_count",
+        })
+        return result.get("results", [])
+
+    async def get_citing_works(self, work_id: str, limit: int = 30) -> list[dict]:
+        """Get works that cite this work (forward citations), sorted by citation count."""
+        result = await self.get("/works", params={
+            "filter": f"cites:{work_id}",
+            "sort": "cited_by_count:desc",
+            "per_page": limit,
+            "select": "id,title,authorships,publication_year,primary_location,doi,cited_by_count",
+        })
+        return result.get("results", [])
+
+    async def search_author(self, name: str) -> Optional[str]:
+        """Search for an author, return their OpenAlex ID."""
+        result = await self.get("/authors", params={"search": name, "per_page": 1})
+        results = result.get("results", [])
+        return results[0]["id"] if results else None
+
+    async def get_author_works(self, author_id: str, limit: int = 20) -> list[dict]:
+        """Get works by a specific author, sorted by citation count."""
+        result = await self.get("/works", params={
+            "filter": f"authorships.author.id:{author_id}",
+            "sort": "cited_by_count:desc",
+            "per_page": limit,
+            "select": "id,title,authorships,publication_year,primary_location,doi,cited_by_count",
+        })
+        return result.get("results", [])
+
+    async def search_works_in_journal(self, query: str, journal_name: str, limit: int = 20) -> list[dict]:
+        """Search within a specific journal."""
+        result = await self.get("/works", params={
+            "search": query,
+            "filter": f"primary_location.source.display_name.search:{journal_name}",
+            "per_page": limit,
+            "select": "id,title,authorships,publication_year,primary_location,doi,cited_by_count",
+        })
+        return result.get("results", [])
+
 
 class CrossRefClient(APIClient):
     """Client for the CrossRef API."""

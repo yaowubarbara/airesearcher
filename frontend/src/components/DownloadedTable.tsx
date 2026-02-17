@@ -13,7 +13,7 @@ function PaperTable({ papers }: { papers: DownloadedPaper[] }) {
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b border-slate-700">
+        <tr className="border-b border-border">
           <th className="text-left py-2 px-3 text-xs text-text-muted font-medium uppercase">Title</th>
           <th className="text-left py-2 px-3 text-xs text-text-muted font-medium uppercase">Authors</th>
           <th className="text-left py-2 px-3 text-xs text-text-muted font-medium uppercase w-12">Year</th>
@@ -22,7 +22,7 @@ function PaperTable({ papers }: { papers: DownloadedPaper[] }) {
       </thead>
       <tbody>
         {papers.map((p) => (
-          <tr key={p.id} className="border-b border-slate-700/50 hover:bg-bg-hover/30">
+          <tr key={p.id} className="border-b border-border hover:bg-bg-hover/30">
             <td className="py-2 px-3 max-w-xs">
               {p.pdf_path ? (
                 <a
@@ -45,8 +45,8 @@ function PaperTable({ papers }: { papers: DownloadedPaper[] }) {
             <td className="py-2 px-3">
               <span className={`text-[11px] px-2 py-0.5 rounded ${
                 p.status === 'indexed'
-                  ? 'bg-emerald-500/15 text-success'
-                  : 'bg-blue-500/15 text-blue-400'
+                  ? 'bg-emerald-50 text-success'
+                  : 'bg-blue-50 text-blue-600'
               }`}>
                 {p.status === 'indexed' ? 'Indexed' : 'Downloaded'}
               </span>
@@ -94,7 +94,7 @@ export default function DownloadedTable({ groups, totalCount }: Props) {
         const isLatest = groups.indexOf(group) === 0 && group.id !== 'other';
 
         return (
-          <div key={group.id} className="border border-slate-700 rounded-lg overflow-hidden">
+          <div key={group.id} className="border border-border rounded-lg overflow-hidden">
             <button
               onClick={() => toggle(group.id)}
               className="w-full flex items-center justify-between px-4 py-3 bg-bg-primary hover:bg-bg-hover/30 transition-colors text-left"
@@ -107,20 +107,20 @@ export default function DownloadedTable({ groups, totalCount }: Props) {
                   {group.query}
                 </span>
                 {isLatest && (
-                  <span className="text-[10px] px-1.5 py-0.5 bg-accent/20 text-accent rounded flex-shrink-0">
+                  <span className="text-[10px] px-1.5 py-0.5 bg-accent-light text-accent rounded flex-shrink-0">
                     Latest
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                <span className="text-[11px] font-mono px-2 py-0.5 bg-emerald-500/15 rounded text-success">
+                <span className="text-[11px] font-mono px-2 py-0.5 bg-emerald-50 rounded text-success">
                   {group.paper_count} papers
                 </span>
               </div>
             </button>
 
             {isExpanded && (
-              <div className="border-t border-slate-700">
+              <div className="border-t border-border">
                 <PaperTable papers={group.papers} />
               </div>
             )}

@@ -56,7 +56,7 @@ export default function SubmitPage() {
           <button
             onClick={formatSubmission}
             disabled={!!activeTaskId || !currentManuscriptId}
-            className="px-4 py-2 bg-accent text-bg-primary text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 bg-accent text-text-inverse text-sm font-medium rounded-lg hover:bg-accent-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Format for Submission
           </button>
@@ -72,7 +72,7 @@ export default function SubmitPage() {
       {submission && (
         <>
           {/* Cover Letter */}
-          <div className="bg-bg-card rounded-lg p-6 border border-slate-700">
+          <div className="bg-bg-card rounded-lg p-6 border border-border">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-medium text-text-muted uppercase tracking-wider">Cover Letter</h3>
               <button
@@ -88,7 +88,7 @@ export default function SubmitPage() {
           </div>
 
           {/* Formatted Manuscript */}
-          <div className="bg-bg-card rounded-lg p-6 border border-slate-700">
+          <div className="bg-bg-card rounded-lg p-6 border border-border">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-medium text-text-muted uppercase tracking-wider">Formatted Manuscript</h3>
               <button

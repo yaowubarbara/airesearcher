@@ -27,6 +27,18 @@ _DIRECTION_SYNTHESIS_PROMPT = """\
 You are a senior comparatist synthesizing a corpus of per-paper problématique \
 annotations into broad research directions.
 
+DISCIPLINE CONSTRAINT: Every direction MUST be framed as a comparative \
+literature research area. Do NOT produce directions that belong to sociology, \
+political science, area studies, or any other discipline. If a cluster of \
+annotations points toward a non-literary field, reframe it through the lens \
+of literary-critical inquiry (poetics, narrative theory, hermeneutics, \
+translation studies, genre theory, affect theory as applied to literary texts, \
+etc.).
+
+Each direction's title and description must be expressed in literary-critical \
+vocabulary. Do NOT use proper nouns (specific author names, country names) in \
+the title.
+
 Each annotation has the form P = <T, M, S, G>:
   T = Tensions (intellectual forces pulling in opposite directions)
   M = Mediators (operative mechanisms traversing the tension)
@@ -38,7 +50,7 @@ scale_mismatch / incommensurability_blindspot)
 {annotation_summaries}
 --- END ANNOTATIONS ---
 
-Synthesize these into **6 to 10** problématique directions.  A direction is a \
+Synthesize these into **6 to 8** problématique directions.  A direction is a \
 coherent cluster of shared or complementary T/M/S/G patterns.  For each \
 direction, identify:
 
@@ -46,7 +58,12 @@ direction, identify:
 2. What mediators are used (or missing)?
 3. At what scale does this direction predominantly operate?
 4. What gap type dominates?
-5. What is NOT yet addressed — what is this direction's blind spot?
+5. What is NOT yet addressed — what is this direction's blind spot? Each \
+direction should identify a blind spot — something the current papers in this \
+cluster do NOT address but should.
+
+Tensions and mediators in the direction should be at the level of \
+literary-critical concepts, not proper nouns or vague themes.
 
 Return a JSON array of objects with exactly these keys:
   "title": string (concise label, max 15 words),
