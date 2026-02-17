@@ -138,13 +138,20 @@ class WritingAgent:
         reflexion_memories = self._load_reflexion_memories(plan)
 
         sections: dict[str, str] = {}
-        all_text_parts: list[str] = []
 
-        for section in plan.outline:
-            section_text = await self.write_section(section, plan, reflexion_memories)
-            sections[section.title] = section_text
-            all_text_parts.append(f"## {section.title}\n\n{section_text}")
+        # Write sections concurrently (semaphore limits parallel LLM calls)
+        import asyncio
+        sem = asyncio.Semaphore(3)
 
+        async def _write_one(sec):
+            async with sem:
+                return sec.title, await self.write_section(sec, plan, reflexion_memories)
+
+        results = await asyncio.gather(*[_write_one(s) for s in plan.outline])
+        for title, text in results:
+            sections[title] = text
+
+        all_text_parts = [f"## {s.title}\n\n{sections[s.title]}" for s in plan.outline]
         full_text = "\n\n".join(all_text_parts)
 
         # Generate abstract
@@ -200,27 +207,30 @@ class WritingAgent:
         # --- Format reviewer feedback into a single instruction block --- #
         feedback_block = self._format_review_feedback(review_result)
 
-        # --- Revise each section ---------------------------------------- #
+        # --- Revise each section concurrently ----------------------------- #
+        import asyncio
+        sem = asyncio.Semaphore(3)
         sections: dict[str, str] = {}
-        all_text_parts: list[str] = []
 
-        for section in plan.outline:
-            current_text = current_manuscript.sections.get(section.title, "")
-            if current_text:
-                revised = await self._revise_draft(
-                    draft=current_text,
-                    revision_instructions=feedback_block,
-                    section=section,
-                    plan=plan,
-                    reflexion_memories=reflexion_memories,
-                )
-            else:
-                # Section missing from previous draft — write from scratch
-                revised = await self.write_section(section, plan, reflexion_memories)
+        async def _revise_one(sec):
+            async with sem:
+                current_text = current_manuscript.sections.get(sec.title, "")
+                if current_text:
+                    return sec.title, await self._revise_draft(
+                        draft=current_text,
+                        revision_instructions=feedback_block,
+                        section=sec,
+                        plan=plan,
+                        reflexion_memories=reflexion_memories,
+                    )
+                else:
+                    return sec.title, await self.write_section(sec, plan, reflexion_memories)
 
-            sections[section.title] = revised
-            all_text_parts.append(f"## {section.title}\n\n{revised}")
+        results = await asyncio.gather(*[_revise_one(s) for s in plan.outline])
+        for title, text in results:
+            sections[title] = text
 
+        all_text_parts = [f"## {s.title}\n\n{sections[s.title]}" for s in plan.outline]
         full_text = "\n\n".join(all_text_parts)
 
         # Regenerate abstract for revised content

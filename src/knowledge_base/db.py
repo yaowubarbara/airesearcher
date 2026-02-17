@@ -98,6 +98,13 @@ class Database:
             self.conn.execute("SELECT direction_id FROM topic_proposals LIMIT 1")
         except sqlite3.OperationalError:
             self.conn.execute("ALTER TABLE topic_proposals ADD COLUMN direction_id TEXT")
+        # Migration: add recency_score column to problematique_directions if missing
+        try:
+            self.conn.execute("SELECT recency_score FROM problematique_directions LIMIT 1")
+        except sqlite3.OperationalError:
+            self.conn.execute(
+                "ALTER TABLE problematique_directions ADD COLUMN recency_score REAL DEFAULT 0.0"
+            )
         self.conn.commit()
 
     def close(self) -> None:
@@ -637,8 +644,8 @@ class Database:
         self.conn.execute(
             """INSERT OR REPLACE INTO problematique_directions
             (id, title, description, dominant_tensions, dominant_mediators,
-             dominant_scale, dominant_gap, paper_ids, topic_ids, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+             dominant_scale, dominant_gap, paper_ids, topic_ids, recency_score, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 d_id,
                 d.title,
@@ -649,6 +656,7 @@ class Database:
                 d.dominant_gap,
                 json.dumps(d.paper_ids),
                 json.dumps(d.topic_ids),
+                d.recency_score,
                 now,
             ),
         )
@@ -657,7 +665,7 @@ class Database:
 
     def get_directions(self, limit: int = 20) -> list[ProblematiqueDirection]:
         rows = self.conn.execute(
-            "SELECT * FROM problematique_directions ORDER BY created_at DESC LIMIT ?",
+            "SELECT * FROM problematique_directions ORDER BY recency_score DESC, created_at DESC LIMIT ?",
             (limit,),
         ).fetchall()
         return [_row_to_direction(r) for r in rows]
@@ -678,6 +686,19 @@ class Database:
             (direction_id, limit),
         ).fetchall()
         return [_row_to_topic(r) for r in rows]
+
+    def delete_all_directions_and_topics(self) -> None:
+        """Delete all directions and their associated topics."""
+        self.conn.execute("DELETE FROM topic_proposals WHERE direction_id IS NOT NULL")
+        self.conn.execute("DELETE FROM problematique_directions")
+        self.conn.commit()
+
+    def delete_topics_for_direction(self, direction_id: str) -> None:
+        """Delete all topics belonging to a specific direction."""
+        self.conn.execute(
+            "DELETE FROM topic_proposals WHERE direction_id = ?", (direction_id,)
+        )
+        self.conn.commit()
 
     # --- Search Sessions ---
 
@@ -906,6 +927,7 @@ def _row_to_annotation(row: sqlite3.Row) -> PaperAnnotation:
 
 
 def _row_to_direction(row: sqlite3.Row) -> ProblematiqueDirection:
+    keys = row.keys()
     return ProblematiqueDirection(
         id=row["id"],
         title=row["title"],
@@ -916,6 +938,7 @@ def _row_to_direction(row: sqlite3.Row) -> ProblematiqueDirection:
         dominant_gap=row["dominant_gap"],
         paper_ids=json.loads(row["paper_ids"]) if row["paper_ids"] else [],
         topic_ids=json.loads(row["topic_ids"]) if row["topic_ids"] else [],
+        recency_score=float(row["recency_score"]) if "recency_score" in keys and row["recency_score"] is not None else 0.0,
         created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
     )
 
@@ -1082,6 +1105,7 @@ CREATE TABLE IF NOT EXISTS problematique_directions (
     dominant_gap TEXT,
     paper_ids TEXT NOT NULL DEFAULT '[]',
     topic_ids TEXT NOT NULL DEFAULT '[]',
+    recency_score REAL DEFAULT 0.0,
     created_at TEXT
 );
 

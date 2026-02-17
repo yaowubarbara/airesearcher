@@ -172,6 +172,65 @@ def filter_papers_by_relevance(
     return papers[:limit]
 
 
+def _normalize_title(title: str) -> str:
+    """Lowercase, strip punctuation, collapse whitespace."""
+    import re as _re
+
+    t = title.lower()
+    t = _re.sub(r"[^\w\s]", " ", t)
+    return " ".join(t.split())
+
+
+def _normalize_authors(authors: list[str] | str) -> set[str]:
+    """Extract lowercase surname set from an author list."""
+    if isinstance(authors, str):
+        authors = [a.strip() for a in authors.split(",") if a.strip()]
+    surnames: set[str] = set()
+    for a in authors:
+        parts = a.strip().split()
+        if parts:
+            # Use last token as surname (handles "First Last" and single names)
+            surnames.add(parts[-1].lower())
+    return surnames
+
+
+def _is_title_duplicate(
+    norm_title: str,
+    author_set: set[str],
+    seen: list[tuple[str, set[str]]],
+    threshold: float = 0.7,
+) -> bool:
+    """Check if *norm_title* fuzzy-matches any entry in *seen*.
+
+    If both the candidate and an existing entry have authors, require at
+    least one shared surname — unless the title Jaccard similarity is very
+    high (>= 0.9), which catches identical papers with different author
+    name formats.
+    """
+    words_new = set(norm_title.split())
+    if not words_new:
+        return False
+    for existing_title, existing_authors in seen:
+        words_old = set(existing_title.split())
+        if not words_old:
+            continue
+        jaccard = len(words_new & words_old) / len(words_new | words_old)
+        if jaccard < threshold:
+            continue
+        # High-similarity shortcut — skip author check
+        if jaccard >= 0.9:
+            return True
+        # If both have authors, require at least one shared surname
+        if author_set and existing_authors:
+            if author_set & existing_authors:
+                return True
+            # Author sets disjoint — not a duplicate despite title overlap
+            continue
+        # One or both lack authors — rely on title similarity alone
+        return True
+    return False
+
+
 class ReferenceSearcher:
     """Search for relevant papers across Semantic Scholar, OpenAlex, and CrossRef."""
 
@@ -410,8 +469,9 @@ class ReferenceSearcher:
             return []
 
     def _deduplicate(self, papers: list[Paper]) -> list[Paper]:
-        """Deduplicate papers by DOI and filter out those already in DB."""
+        """Deduplicate papers by DOI *and* title+author fuzzy matching."""
         seen_dois: set[str] = set()
+        seen_titles: list[tuple[str, set[str]]] = []
         unique: list[Paper] = []
 
         for paper in papers:
@@ -426,6 +486,16 @@ class ReferenceSearcher:
                     existing = self.db.get_paper_by_doi(doi)
                     if existing:
                         continue
+
+            # Title+author fuzzy check (catches no-DOI duplicates *and*
+            # duplicate of a DOI paper that appears again without a DOI).
+            if paper.title:
+                norm = _normalize_title(paper.title)
+                authors = _normalize_authors(paper.authors if paper.authors else [])
+                if _is_title_duplicate(norm, authors, seen_titles):
+                    continue
+                seen_titles.append((norm, authors))
+
             unique.append(paper)
 
         return unique

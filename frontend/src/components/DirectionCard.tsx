@@ -46,6 +46,11 @@ export default function DirectionCard({
           </div>
           <div className="flex items-center gap-3 text-xs text-text-muted shrink-0">
             <span>{direction.paper_ids.length} papers</span>
+            {direction.recency_score != null && direction.recency_score > 0 && (
+              <span className="px-1.5 py-0.5 rounded bg-cyan-900/40 text-cyan-300 font-medium">
+                {direction.recency_score.toFixed(2)}
+              </span>
+            )}
             <span>{topics.length} topics</span>
             <span className="text-lg">{expanded ? '\u25B4' : '\u25BE'}</span>
           </div>

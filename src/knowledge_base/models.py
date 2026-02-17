@@ -142,6 +142,7 @@ class ProblematiqueDirection(BaseModel):
     dominant_gap: Optional[str] = None
     paper_ids: list[str] = Field(default_factory=list)
     topic_ids: list[str] = Field(default_factory=list)
+    recency_score: float = 0.0
     created_at: Optional[datetime] = None
 
 

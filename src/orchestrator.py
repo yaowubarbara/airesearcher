@@ -150,9 +150,16 @@ def create_workflow(
             }
 
     async def discover_node(state: WorkflowState) -> dict:
-        """Run topic discovery: annotate → cluster → generate topics."""
+        """Run topic discovery: annotate → cluster (full or delta) → generate topics."""
+        from datetime import datetime as _dt
+
         from src.topic_discovery.gap_analyzer import annotate_corpus
-        from src.topic_discovery.trend_tracker import cluster_into_directions
+        from src.topic_discovery.trend_tracker import (
+            cluster_into_directions,
+            compute_recency_scores,
+            compress_directions,
+            delta_cluster_directions,
+        )
         from src.topic_discovery.topic_scorer import generate_topics_for_direction
 
         try:
@@ -161,22 +168,81 @@ def create_workflow(
             # Step 1: Annotate papers with P = <T, M, S, G>
             annotations = await annotate_corpus(papers, llm_router, db)
 
-            # Step 2: Cluster into directions
-            directions = await cluster_into_directions(annotations, papers, llm_router)
-
-            # Step 3: Generate topics per direction, store in DB
+            # Step 2: Cluster (full or delta)
+            import asyncio
+            existing_directions = db.get_directions(limit=100)
+            current_year = _dt.utcnow().year
             all_topics: list[dict] = []
             direction_dicts: list[dict] = []
-            for direction in directions:
-                dir_id = db.insert_direction(direction)
-                direction.id = dir_id
 
-                topics = await generate_topics_for_direction(
+            if not existing_directions:
+                # Full clustering
+                db.delete_all_directions_and_topics()
+                directions = await cluster_into_directions(annotations, papers, llm_router)
+                directions = await compress_directions(directions, llm_router, max_directions=10)
+                compute_recency_scores(directions, papers, current_year)
+
+                for direction in directions:
+                    dir_id = db.insert_direction(direction)
+                    direction.id = dir_id
+
+                changed_dir_ids = {d.id for d in directions if d.id}
+            else:
+                # Delta clustering
+                assigned_paper_ids = set()
+                for d in existing_directions:
+                    assigned_paper_ids.update(d.paper_ids)
+                new_annotations = [a for a in annotations if a.paper_id not in assigned_paper_ids]
+
+                if new_annotations:
+                    directions, changed_ids = await delta_cluster_directions(
+                        new_annotations, existing_directions, papers, llm_router,
+                    )
+                else:
+                    directions = existing_directions
+                    changed_ids = set()
+
+                directions = await compress_directions(directions, llm_router, max_directions=10)
+                compute_recency_scores(directions, papers, current_year)
+
+                for direction in directions:
+                    dir_id = db.insert_direction(direction)
+                    direction.id = dir_id
+
+                changed_dir_ids = set()
+                for d in directions:
+                    if d.id and (d.id in changed_ids or not d.topic_ids):
+                        changed_dir_ids.add(d.id)
+                if "__new__" in changed_ids:
+                    for d in directions:
+                        if d.id and not d.topic_ids:
+                            changed_dir_ids.add(d.id)
+
+            # Step 3: Generate topics for changed directions only
+            dirs_needing_topics = [d for d in directions if d.id in changed_dir_ids]
+
+            for d in dirs_needing_topics:
+                if d.id:
+                    db.delete_topics_for_direction(d.id)
+
+            async def _gen_for_direction(direction):
+                return direction, await generate_topics_for_direction(
                     direction, papers, annotations, llm_router
                 )
+
+            results = await asyncio.gather(
+                *[_gen_for_direction(d) for d in dirs_needing_topics],
+                return_exceptions=True,
+            )
+
+            for r in results:
+                if isinstance(r, Exception):
+                    logger.warning("Topic generation failed for a direction: %s", r)
+                    continue
+                direction, topics = r
                 topic_ids = []
                 for topic in topics:
-                    topic.direction_id = dir_id
+                    topic.direction_id = direction.id
                     if state.target_journal:
                         topic.target_journals = [state.target_journal]
                     tid = db.insert_topic(topic)
@@ -185,7 +251,6 @@ def create_workflow(
                     all_topics.append(topic.model_dump())
 
                 direction.topic_ids = topic_ids
-                # Update direction with topic_ids
                 db.insert_direction(direction)
                 direction_dicts.append(direction.model_dump())
 
