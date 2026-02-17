@@ -741,3 +741,325 @@ class TestParseAnnotation:
         result = _parse_annotation(raw)
         assert result["tensions"] == []
         assert result["mediators"] == []
+
+
+# ===========================================================================
+# Recency score tests
+# ===========================================================================
+
+
+class TestRecencyScore:
+    def test_current_year_papers(self):
+        from src.topic_discovery.trend_tracker import compute_recency_scores
+        papers = [
+            Paper(id="p1", title="P1", journal="J", year=2026),
+            Paper(id="p2", title="P2", journal="J", year=2026),
+        ]
+        d = ProblematiqueDirection(title="D", description="", paper_ids=["p1", "p2"])
+        compute_recency_scores([d], papers, 2026)
+        assert d.recency_score == 1.0
+
+    def test_old_papers(self):
+        from src.topic_discovery.trend_tracker import compute_recency_scores
+        papers = [
+            Paper(id="p1", title="P1", journal="J", year=2020),
+        ]
+        d = ProblematiqueDirection(title="D", description="", paper_ids=["p1"])
+        compute_recency_scores([d], papers, 2026)
+        # 1 / (2026 - 2020 + 1) = 1/7
+        assert abs(d.recency_score - 1.0 / 7) < 1e-9
+
+    def test_mixed_years(self):
+        from src.topic_discovery.trend_tracker import compute_recency_scores
+        papers = [
+            Paper(id="p1", title="P1", journal="J", year=2026),
+            Paper(id="p2", title="P2", journal="J", year=2024),
+        ]
+        d = ProblematiqueDirection(title="D", description="", paper_ids=["p1", "p2"])
+        compute_recency_scores([d], papers, 2026)
+        expected = (1.0 + 1.0 / 3) / 2
+        assert abs(d.recency_score - expected) < 1e-9
+
+    def test_empty_paper_ids(self):
+        from src.topic_discovery.trend_tracker import compute_recency_scores
+        d = ProblematiqueDirection(title="D", description="", paper_ids=[])
+        compute_recency_scores([d], [], 2026)
+        assert d.recency_score == 0.0
+
+    def test_missing_paper_in_corpus(self):
+        from src.topic_discovery.trend_tracker import compute_recency_scores
+        papers = [Paper(id="p1", title="P1", journal="J", year=2026)]
+        d = ProblematiqueDirection(title="D", description="", paper_ids=["p1", "p_missing"])
+        compute_recency_scores([d], papers, 2026)
+        # Only p1 contributes
+        assert d.recency_score == 1.0
+
+
+# ===========================================================================
+# Delta cluster tests
+# ===========================================================================
+
+
+class TestDeltaCluster:
+    @pytest.mark.asyncio
+    async def test_assign_to_existing(self, sample_papers, sample_annotations):
+        existing = [
+            ProblematiqueDirection(
+                id="dir-1", title="Existing", description="D",
+                dominant_tensions=["A ↔ B"], paper_ids=["p1"],
+            )
+        ]
+        new_ann = [sample_annotations[1]]  # p2
+
+        result_json = json.dumps({
+            "assignments": [{"annotation_index": 0, "direction_id": "dir-1"}],
+            "new_directions": [],
+        })
+        router = _make_mock_router(result_json)
+
+        from src.topic_discovery.trend_tracker import delta_cluster_directions
+        dirs, changed = await delta_cluster_directions(
+            new_ann, existing, sample_papers, router
+        )
+
+        assert len(dirs) == 1
+        assert "p2" in dirs[0].paper_ids
+        assert "dir-1" in changed
+
+    @pytest.mark.asyncio
+    async def test_new_direction(self, sample_papers, sample_annotations):
+        existing = [
+            ProblematiqueDirection(
+                id="dir-1", title="Existing", description="D", paper_ids=["p1"],
+            )
+        ]
+        new_ann = [sample_annotations[1]]
+
+        result_json = json.dumps({
+            "assignments": [],
+            "new_directions": [{
+                "title": "Brand New",
+                "description": "New direction",
+                "dominant_tensions": ["new tension"],
+                "dominant_mediators": [],
+                "dominant_scale": "textual",
+                "dominant_gap": "mediational_gap",
+                "annotation_indices": [0],
+            }],
+        })
+        router = _make_mock_router(result_json)
+
+        from src.topic_discovery.trend_tracker import delta_cluster_directions
+        dirs, changed = await delta_cluster_directions(
+            new_ann, existing, sample_papers, router
+        )
+
+        assert len(dirs) == 2
+        assert dirs[1].title == "Brand New"
+        assert "p2" in dirs[1].paper_ids
+        assert "__new__" in changed
+
+    @pytest.mark.asyncio
+    async def test_empty_new_annotations(self, sample_papers):
+        existing = [
+            ProblematiqueDirection(
+                id="dir-1", title="Existing", description="D", paper_ids=["p1"],
+            )
+        ]
+
+        from src.topic_discovery.trend_tracker import delta_cluster_directions
+        router = _make_mock_router("{}")
+        dirs, changed = await delta_cluster_directions(
+            [], existing, sample_papers, router
+        )
+
+        assert len(dirs) == 1
+        assert len(changed) == 0
+
+    @pytest.mark.asyncio
+    async def test_invalid_direction_id(self, sample_papers, sample_annotations):
+        existing = [
+            ProblematiqueDirection(
+                id="dir-1", title="Existing", description="D", paper_ids=["p1"],
+            )
+        ]
+        new_ann = [sample_annotations[1]]
+
+        result_json = json.dumps({
+            "assignments": [{"annotation_index": 0, "direction_id": "NONEXISTENT"}],
+            "new_directions": [],
+        })
+        router = _make_mock_router(result_json)
+
+        from src.topic_discovery.trend_tracker import delta_cluster_directions
+        dirs, changed = await delta_cluster_directions(
+            new_ann, existing, sample_papers, router
+        )
+
+        assert len(dirs) == 1
+        assert "p2" not in dirs[0].paper_ids  # invalid ID ignored
+        assert len(changed) == 0
+
+
+# ===========================================================================
+# Compress directions tests
+# ===========================================================================
+
+
+class TestCompressDirections:
+    @pytest.mark.asyncio
+    async def test_under_cap_returns_unchanged(self):
+        dirs = [
+            ProblematiqueDirection(
+                id=f"d{i}", title=f"Dir {i}", description="D", paper_ids=[f"p{i}"]
+            )
+            for i in range(5)
+        ]
+        router = _make_mock_router("[]")
+
+        from src.topic_discovery.trend_tracker import compress_directions
+        result = await compress_directions(dirs, router, max_directions=10)
+
+        assert len(result) == 5  # unchanged
+        assert result is dirs  # same list object
+
+    @pytest.mark.asyncio
+    async def test_merge_over_cap(self):
+        dirs = [
+            ProblematiqueDirection(
+                id=f"d{i}", title=f"Dir {i}", description="D", paper_ids=[f"p{i}"]
+            )
+            for i in range(12)
+        ]
+        merged_json = json.dumps([
+            {
+                "title": "Merged 1",
+                "description": "Combined",
+                "dominant_tensions": ["A ↔ B"],
+                "dominant_mediators": [],
+                "dominant_scale": "textual",
+                "dominant_gap": "mediational_gap",
+                "merged_from": ["d0", "d1", "d2", "d3", "d4", "d5"],
+                "paper_ids": ["p0", "p1", "p2", "p3", "p4", "p5"],
+            },
+            {
+                "title": "Merged 2",
+                "description": "Combined",
+                "dominant_tensions": ["C ↔ D"],
+                "dominant_mediators": [],
+                "dominant_scale": "perceptual",
+                "dominant_gap": "temporal_flattening",
+                "merged_from": ["d6", "d7", "d8", "d9", "d10", "d11"],
+                "paper_ids": ["p6", "p7", "p8", "p9", "p10", "p11"],
+            },
+        ])
+        router = _make_mock_router(merged_json)
+
+        from src.topic_discovery.trend_tracker import compress_directions
+        result = await compress_directions(dirs, router, max_directions=10)
+
+        assert len(result) == 2
+        all_pids = set()
+        for d in result:
+            all_pids.update(d.paper_ids)
+        assert len(all_pids) == 12  # no orphans
+
+    @pytest.mark.asyncio
+    async def test_llm_failure_returns_original(self):
+        dirs = [
+            ProblematiqueDirection(
+                id=f"d{i}", title=f"Dir {i}", description="D", paper_ids=[f"p{i}"]
+            )
+            for i in range(12)
+        ]
+        router = MagicMock()
+        router.complete.side_effect = RuntimeError("LLM error")
+
+        from src.topic_discovery.trend_tracker import compress_directions
+        result = await compress_directions(dirs, router, max_directions=10)
+
+        assert len(result) == 12  # unchanged
+
+
+# ===========================================================================
+# DB delete directions/topics tests
+# ===========================================================================
+
+
+class TestDBDeleteDirectionsAndTopics:
+    def test_delete_all(self, tmp_db):
+        # Insert directions and topics
+        d1 = ProblematiqueDirection(title="D1", description="Desc")
+        d1_id = tmp_db.insert_direction(d1)
+        t1 = TopicProposal(
+            title="T1", research_question="Q", gap_description="G", direction_id=d1_id,
+        )
+        tmp_db.insert_topic(t1)
+
+        d2 = ProblematiqueDirection(title="D2", description="Desc")
+        d2_id = tmp_db.insert_direction(d2)
+        t2 = TopicProposal(
+            title="T2", research_question="Q", gap_description="G", direction_id=d2_id,
+        )
+        tmp_db.insert_topic(t2)
+
+        assert len(tmp_db.get_directions(limit=10)) == 2
+        assert len(tmp_db.get_topics(limit=10)) == 2
+
+        tmp_db.delete_all_directions_and_topics()
+
+        assert len(tmp_db.get_directions(limit=10)) == 0
+        assert len(tmp_db.get_topics(limit=10)) == 0
+
+    def test_delete_topics_for_direction(self, tmp_db):
+        d1 = ProblematiqueDirection(title="D1", description="Desc")
+        d1_id = tmp_db.insert_direction(d1)
+        for i in range(3):
+            tmp_db.insert_topic(TopicProposal(
+                title=f"T{i}", research_question="Q", gap_description="G",
+                direction_id=d1_id,
+            ))
+
+        d2 = ProblematiqueDirection(title="D2", description="Desc")
+        d2_id = tmp_db.insert_direction(d2)
+        tmp_db.insert_topic(TopicProposal(
+            title="T_other", research_question="Q", gap_description="G",
+            direction_id=d2_id,
+        ))
+
+        tmp_db.delete_topics_for_direction(d1_id)
+
+        # D1 topics gone, D2 topic remains
+        assert len(tmp_db.get_topics_by_direction(d1_id, limit=10)) == 0
+        assert len(tmp_db.get_topics_by_direction(d2_id, limit=10)) == 1
+
+
+# ===========================================================================
+# Direction recency_score persistence + sort order
+# ===========================================================================
+
+
+class TestDirectionRecencyScoreDB:
+    def test_persist_recency_score(self, tmp_db):
+        d = ProblematiqueDirection(
+            title="D1", description="Desc", recency_score=0.75,
+        )
+        d_id = tmp_db.insert_direction(d)
+        fetched = tmp_db.get_direction(d_id)
+        assert abs(fetched.recency_score - 0.75) < 1e-9
+
+    def test_sort_by_recency_desc(self, tmp_db):
+        tmp_db.insert_direction(ProblematiqueDirection(
+            title="Low", description="", recency_score=0.1,
+        ))
+        tmp_db.insert_direction(ProblematiqueDirection(
+            title="High", description="", recency_score=0.9,
+        ))
+        tmp_db.insert_direction(ProblematiqueDirection(
+            title="Mid", description="", recency_score=0.5,
+        ))
+
+        dirs = tmp_db.get_directions(limit=10)
+        assert dirs[0].title == "High"
+        assert dirs[1].title == "Mid"
+        assert dirs[2].title == "Low"

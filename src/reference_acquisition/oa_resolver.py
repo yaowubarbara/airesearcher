@@ -117,15 +117,28 @@ class OAResolver:
         return None
 
     async def resolve_many(self, papers: list[Paper]) -> dict[str, Optional[str]]:
-        """Resolve PDF URLs for multiple papers.
+        """Resolve PDF URLs for multiple papers concurrently.
 
         Returns dict mapping paper ID (or title) to resolved URL (or None).
         """
+        import asyncio
+        sem = asyncio.Semaphore(10)
+
+        async def _resolve_one(paper: Paper):
+            async with sem:
+                key = paper.id or paper.title
+                url = await self.resolve_pdf_url(paper)
+                return key, url
+
+        results_list = await asyncio.gather(
+            *[_resolve_one(p) for p in papers],
+            return_exceptions=True,
+        )
         results: dict[str, Optional[str]] = {}
-        for paper in papers:
-            key = paper.id or paper.title
-            url = await self.resolve_pdf_url(paper)
-            results[key] = url
+        for r in results_list:
+            if isinstance(r, Exception):
+                continue
+            results[r[0]] = r[1]
         return results
 
     async def _try_unpaywall(self, doi: str) -> Optional[str]:

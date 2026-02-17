@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -26,6 +27,108 @@ from .outline_generator import OutlineGenerator
 from .reference_selector import ReferenceSelector
 
 logger = logging.getLogger(__name__)
+
+
+_TOPIC_SYNTHESIS_PROMPT = """\
+You are a comparative literature scholar. Given the following corpus of \
+academic papers, propose a research topic that could be developed into a \
+journal article.
+
+{hint_block}
+Papers in the corpus:
+{paper_list}
+
+Respond with a JSON object containing exactly three keys:
+- "title": a concise, descriptive paper title (in the language of the majority of titles, or English if mixed)
+- "research_question": a specific, falsifiable research question that names authors, texts, or concepts from the corpus
+- "gap_description": a brief description of the scholarly gap this question addresses
+
+Return ONLY the JSON object, no explanation.
+"""
+
+
+def synthesize_topic_from_papers(
+    paper_ids: list[str],
+    db: Database,
+    llm_router: LLMRouter,
+    hint: str = "",
+) -> TopicProposal:
+    """Synthesize a TopicProposal from a set of papers via LLM.
+
+    Gathers titles + first 300 chars of abstract from up to 30 papers,
+    sends to LLM for topic synthesis, returns a populated TopicProposal.
+
+    Args:
+        paper_ids: IDs of papers to consider.
+        db: Database instance.
+        llm_router: LLMRouter instance.
+        hint: Optional user hint (e.g. search query) to guide synthesis.
+
+    Returns:
+        A TopicProposal with synthesized title, research_question, and
+        gap_description.
+    """
+    # Gather paper metadata
+    lines: list[str] = []
+    for pid in paper_ids[:30]:
+        paper = db.get_paper(pid)
+        if not paper:
+            continue
+        title = paper.title or "Untitled"
+        authors = ", ".join(paper.authors[:3]) if paper.authors else "Unknown"
+        year = f" ({paper.year})" if paper.year else ""
+        abstract_snippet = ""
+        if paper.abstract:
+            abstract_snippet = f" — {paper.abstract[:300]}"
+        lines.append(f"- {authors}{year}: {title}{abstract_snippet}")
+
+    if not lines:
+        # No papers found — return minimal fallback
+        return TopicProposal(
+            id=str(uuid.uuid4()),
+            title=hint or "Research topic",
+            research_question=hint or "Research question to be determined",
+            gap_description="Corpus papers not available for synthesis",
+            overall_score=0.3,
+            status="approved",
+        )
+
+    paper_list = "\n".join(lines)
+    hint_block = f"The user is interested in: {hint}\n" if hint else ""
+    prompt = _TOPIC_SYNTHESIS_PROMPT.format(hint_block=hint_block, paper_list=paper_list)
+
+    try:
+        response = llm_router.complete(
+            task_type="writing_en",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5,
+            max_tokens=1000,
+        )
+        text = llm_router.get_response_text(response).strip()
+        # Strip markdown fences
+        if text.startswith("```"):
+            text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        data = json.loads(text)
+        return TopicProposal(
+            id=str(uuid.uuid4()),
+            title=data.get("title", hint or "Research topic"),
+            research_question=data.get("research_question", ""),
+            gap_description=data.get("gap_description", ""),
+            evidence_paper_ids=paper_ids[:20],
+            overall_score=0.5,
+            status="approved",
+        )
+    except Exception:
+        logger.warning("Topic synthesis LLM call failed, using fallback", exc_info=True)
+        return TopicProposal(
+            id=str(uuid.uuid4()),
+            title=hint or "Research topic",
+            research_question=hint or "Research question to be determined",
+            gap_description=f"Synthesized from {len(lines)} papers in corpus",
+            evidence_paper_ids=paper_ids[:20],
+            overall_score=0.3,
+            status="approved",
+        )
 
 
 class ResearchPlanner:

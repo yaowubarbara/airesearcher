@@ -192,7 +192,9 @@ async def annotate_paper(
     ]
 
     try:
-        response = llm_router.complete(
+        import asyncio
+        response = await asyncio.to_thread(
+            llm_router.complete,
             task_type="topic_discovery",
             messages=messages,
             temperature=0.3,
@@ -250,30 +252,47 @@ async def annotate_corpus(
         len(to_annotate),
     )
 
-    # Annotate sequentially to respect rate limits
-    for i, paper in enumerate(to_annotate):
-        ann = await annotate_paper(paper, llm_router)
-        if ann:
-            ann_id = db.insert_annotation(ann)
-            ann.id = ann_id
-            all_annotations.append(ann)
-            logger.info(
-                "Annotated [%d/%d] '%s': T=%s M=%s S=%s G=%s",
-                i + 1,
-                len(to_annotate),
-                paper.title[:50],
-                ann.tensions,
-                ann.mediators,
-                ann.scale.value,
-                ann.gap.value,
-            )
-        else:
-            logger.warning(
-                "Skipped [%d/%d] '%s' (no annotation returned)",
-                i + 1,
-                len(to_annotate),
-                paper.title[:50],
-            )
+    # Annotate concurrently in batches
+    import asyncio
+
+    CONCURRENCY = 10
+    semaphore = asyncio.Semaphore(CONCURRENCY)
+    completed = 0
+
+    async def _annotate_one(paper: Paper) -> Optional[PaperAnnotation]:
+        nonlocal completed
+        async with semaphore:
+            ann = await annotate_paper(paper, llm_router)
+            completed += 1
+            if ann:
+                ann_id = db.insert_annotation(ann)
+                ann.id = ann_id
+                logger.info(
+                    "Annotated [%d/%d] '%s': T=%s M=%s S=%s G=%s",
+                    completed,
+                    len(to_annotate),
+                    paper.title[:50],
+                    ann.tensions,
+                    ann.mediators,
+                    ann.scale.value,
+                    ann.gap.value,
+                )
+            else:
+                logger.warning(
+                    "Skipped [%d/%d] '%s' (no annotation returned)",
+                    completed,
+                    len(to_annotate),
+                    paper.title[:50],
+                )
+            return ann
+
+    tasks = [_annotate_one(paper) for paper in to_annotate]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    for r in results:
+        if isinstance(r, PaperAnnotation):
+            all_annotations.append(r)
+        elif isinstance(r, Exception):
+            logger.warning("Annotation task failed: %s", r)
 
     logger.info("Annotation complete: %d total annotations", len(all_annotations))
     return all_annotations

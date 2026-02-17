@@ -18,7 +18,7 @@ routing:
 
   # Chinese journal writing
   writing_zh:
-    primary: openrouter/google/gemini-2.5-flash-preview
+    primary: openrouter/google/gemini-2.5-flash
     fallback: openrouter/google/gemini-2.0-flash-001
     provider: openrouter
     temperature: 0.7
@@ -26,7 +26,7 @@ routing:
 
   # English/French close reading
   close_reading:
-    primary: openrouter/google/gemini-2.5-flash-preview
+    primary: openrouter/google/gemini-2.5-flash
     fallback: openrouter/google/gemini-2.0-flash-001
     provider: openrouter
     temperature: 0.3
@@ -34,7 +34,7 @@ routing:
 
   # Long document full analysis
   long_document_analysis:
-    primary: openrouter/google/gemini-2.5-flash-preview
+    primary: openrouter/google/gemini-2.5-flash
     fallback: openrouter/google/gemini-2.0-flash-001
     provider: openrouter
     temperature: 0.3
@@ -42,7 +42,7 @@ routing:
 
   # Topic analysis, reasoning
   topic_discovery:
-    primary: openrouter/google/gemini-2.5-flash-preview
+    primary: openrouter/google/gemini-2.5-flash
     fallback: openrouter/google/gemini-2.0-flash-001
     provider: openrouter
     temperature: 0.5
@@ -58,7 +58,7 @@ routing:
 
   # Self-review / quality check
   self_review:
-    primary: openrouter/google/gemini-2.5-flash-preview
+    primary: openrouter/google/gemini-2.5-flash
     fallback: openrouter/google/gemini-2.0-flash-001
     provider: openrouter
     temperature: 0.3
@@ -66,7 +66,7 @@ routing:
 
   # French writing
   writing_fr:
-    primary: openrouter/google/gemini-2.5-flash-preview
+    primary: openrouter/google/gemini-2.5-flash
     fallback: openrouter/google/gemini-2.0-flash-001
     provider: openrouter
     temperature: 0.7
@@ -74,7 +74,7 @@ routing:
 
   # English writing
   writing_en:
-    primary: openrouter/google/gemini-2.5-flash-preview
+    primary: openrouter/google/gemini-2.5-flash
     fallback: openrouter/google/gemini-2.0-flash-001
     provider: openrouter
     temperature: 0.7
@@ -82,7 +82,7 @@ routing:
 
   # Generic writing (language auto-detected)
   writing:
-    primary: openrouter/google/gemini-2.5-flash-preview
+    primary: openrouter/google/gemini-2.5-flash
     fallback: openrouter/google/gemini-2.0-flash-001
     provider: openrouter
     temperature: 0.7
@@ -90,7 +90,7 @@ routing:
 
   # Self-Refine critique pass
   critique:
-    primary: openrouter/google/gemini-2.5-flash-preview
+    primary: openrouter/google/gemini-2.5-flash
     fallback: openrouter/google/gemini-2.0-flash-001
     provider: openrouter
     temperature: 0.3
@@ -98,7 +98,7 @@ routing:
 
   # Gap analysis / multi-perspective questioning
   gap_analysis:
-    primary: openrouter/google/gemini-2.5-flash-preview
+    primary: openrouter/google/gemini-2.5-flash
     fallback: openrouter/google/gemini-2.0-flash-001
     provider: openrouter
     temperature: 0.5
@@ -106,7 +106,7 @@ routing:
 
   # Reference verification (needs precision)
   reference_verification:
-    primary: openrouter/google/gemini-2.5-flash-preview
+    primary: openrouter/google/gemini-2.5-flash
     fallback: openrouter/google/gemini-2.0-flash-001
     provider: openrouter
     temperature: 0.0
@@ -114,7 +114,7 @@ routing:
 
   # Cover letter / response to reviewers
   correspondence:
-    primary: openrouter/google/gemini-2.5-flash-preview
+    primary: openrouter/google/gemini-2.5-flash
     fallback: openrouter/google/gemini-2.0-flash-001
     provider: openrouter
     temperature: 0.5
@@ -122,7 +122,7 @@ routing:
 
 # Default settings
 defaults:
-  primary: openrouter/google/gemini-2.5-flash-preview
+  primary: openrouter/google/gemini-2.5-flash
   fallback: openrouter/google/gemini-2.0-flash-001
   provider: openrouter
   temperature: 0.3

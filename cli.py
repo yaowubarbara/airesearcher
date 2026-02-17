@@ -119,10 +119,18 @@ def index(pdf_path: str, paper_id: str | None) -> None:
 @main.command()
 @click.option("--limit", default=200, help="Max papers to annotate")
 @click.option("--annotate-only", is_flag=True, help="Only annotate, skip clustering and topic generation")
-def discover(limit: int, annotate_only: bool) -> None:
+@click.option("--reset", is_flag=True, help="Clear all existing directions/topics before running")
+def discover(limit: int, annotate_only: bool, reset: bool) -> None:
     """Discover research gaps via P-ontology annotation + direction clustering."""
+    from datetime import datetime as _dt
+
     from src.topic_discovery.gap_analyzer import annotate_corpus
-    from src.topic_discovery.trend_tracker import cluster_into_directions
+    from src.topic_discovery.trend_tracker import (
+        cluster_into_directions,
+        compute_recency_scores,
+        compress_directions,
+        delta_cluster_directions,
+    )
     from src.topic_discovery.topic_scorer import generate_topics_for_direction
 
     async def _run():
@@ -134,6 +142,10 @@ def discover(limit: int, annotate_only: bool) -> None:
                 console.print("[yellow]No papers in database. Run 'monitor' first.[/yellow]")
                 return
 
+            if reset:
+                db.delete_all_directions_and_topics()
+                console.print("[yellow]Cleared all existing directions and topics.[/yellow]")
+
             console.print(f"Annotating {len(papers)} papers with P-ontology...")
             annotations = await annotate_corpus(papers, router, db)
             console.print(f"[green]{len(annotations)} annotations total[/green]")
@@ -141,31 +153,83 @@ def discover(limit: int, annotate_only: bool) -> None:
             if annotate_only:
                 return
 
-            console.print("\nClustering into problématique directions...")
-            directions = await cluster_into_directions(annotations, papers, router)
+            existing_directions = db.get_directions(limit=100)
+            current_year = _dt.utcnow().year
+
+            if not existing_directions:
+                console.print("\nClustering into problématique directions...")
+                directions = await cluster_into_directions(annotations, papers, router)
+                directions = await compress_directions(directions, router, max_directions=10)
+                compute_recency_scores(directions, papers, current_year)
+
+                for direction in directions:
+                    dir_id = db.insert_direction(direction)
+                    direction.id = dir_id
+
+                changed_dir_ids = {d.id for d in directions if d.id}
+            else:
+                console.print("\nDelta-clustering new annotations into existing directions...")
+                assigned_paper_ids = set()
+                for d in existing_directions:
+                    assigned_paper_ids.update(d.paper_ids)
+                new_annotations = [a for a in annotations if a.paper_id not in assigned_paper_ids]
+
+                if new_annotations:
+                    console.print(f"  {len(new_annotations)} new annotations to assign")
+                    directions, changed_ids = await delta_cluster_directions(
+                        new_annotations, existing_directions, papers, router,
+                    )
+                else:
+                    console.print("  No new annotations to assign")
+                    directions = existing_directions
+                    changed_ids = set()
+
+                directions = await compress_directions(directions, router, max_directions=10)
+                compute_recency_scores(directions, papers, current_year)
+
+                for direction in directions:
+                    dir_id = db.insert_direction(direction)
+                    direction.id = dir_id
+
+                changed_dir_ids = set()
+                for d in directions:
+                    if d.id and (d.id in changed_ids or not d.topic_ids):
+                        changed_dir_ids.add(d.id)
+                if "__new__" in changed_ids:
+                    for d in directions:
+                        if d.id and not d.topic_ids:
+                            changed_dir_ids.add(d.id)
+
+            # Generate topics for changed directions
+            dirs_needing_topics = [d for d in directions if d.id in changed_dir_ids]
 
             dir_table = Table(title="Problématique Directions")
             dir_table.add_column("#", width=3)
             dir_table.add_column("Direction", max_width=40)
             dir_table.add_column("Tensions", max_width=30)
             dir_table.add_column("Papers", width=7)
+            dir_table.add_column("Recency", width=7)
             dir_table.add_column("Topics", width=7)
 
-            for i, direction in enumerate(directions):
-                dir_id = db.insert_direction(direction)
-                direction.id = dir_id
+            for d in dirs_needing_topics:
+                if d.id:
+                    db.delete_topics_for_direction(d.id)
 
-                console.print(f"\nGenerating topics for: [bold]{direction.title}[/bold]")
-                topics = await generate_topics_for_direction(
-                    direction, papers, annotations, router
-                )
-                topic_ids = []
-                for topic in topics:
-                    topic.direction_id = dir_id
-                    tid = db.insert_topic(topic)
-                    topic_ids.append(tid)
-                direction.topic_ids = topic_ids
-                db.insert_direction(direction)
+            for i, direction in enumerate(directions):
+                topic_count = len(direction.topic_ids)
+                if direction.id in changed_dir_ids:
+                    console.print(f"\nGenerating topics for: [bold]{direction.title}[/bold]")
+                    topics = await generate_topics_for_direction(
+                        direction, papers, annotations, router
+                    )
+                    topic_ids = []
+                    for topic in topics:
+                        topic.direction_id = direction.id
+                        tid = db.insert_topic(topic)
+                        topic_ids.append(tid)
+                    direction.topic_ids = topic_ids
+                    db.insert_direction(direction)
+                    topic_count = len(topics)
 
                 tensions_str = "; ".join(direction.dominant_tensions[:2]) if direction.dominant_tensions else "-"
                 dir_table.add_row(
@@ -173,7 +237,8 @@ def discover(limit: int, annotate_only: bool) -> None:
                     direction.title[:40],
                     tensions_str[:30],
                     str(len(direction.paper_ids)),
-                    str(len(topics)),
+                    f"{direction.recency_score:.2f}",
+                    str(topic_count),
                 )
 
             console.print()

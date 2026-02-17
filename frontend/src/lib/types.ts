@@ -277,6 +277,7 @@ export interface ProblematiqueDirection {
   dominant_gap?: string;
   paper_ids: string[];
   topic_ids: string[];
+  recency_score?: number;
 }
 
 export interface DirectionWithTopics {

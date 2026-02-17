@@ -163,7 +163,9 @@ async def generate_topics_for_direction(
     ]
 
     try:
-        response = llm_router.complete(
+        import asyncio
+        response = await asyncio.to_thread(
+            llm_router.complete,
             task_type="topic_discovery",
             messages=messages,
             temperature=0.5,
