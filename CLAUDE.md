@@ -1,9 +1,9 @@
 # AI Researcher - Project Memory
 
 ## User Workflow Rules
-- **"交互一下"**: When the user says "交互一下" (or similar like "我要交互"), immediately start a Cloudflare tunnel (`cloudflared tunnel --url http://localhost:3000`) pointing to the current project's frontend dev server. Ensure:
-  1. The frontend dev server is running (`cd frontend && npm run dev` on port 3000 if not already running)
-  2. Start `cloudflared tunnel --url http://localhost:3000` in the background
+- **"交互一下"**: When the user says "交互一下" (or similar like "我要交互"), immediately start a Cloudflare tunnel (`cloudflared tunnel --url http://localhost:3009`) pointing to the current project's frontend dev server. Ensure:
+  1. The frontend dev server is running (`cd frontend && npm run dev` on port 3009 if not already running)
+  2. Start `cloudflared tunnel --url http://localhost:3009` in the background
   3. Return the generated `*.trycloudflare.com` link to the user
   4. The link must point to **this project's** frontend (ai-researcher), not any other service
 
