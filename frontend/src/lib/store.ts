@@ -1,176 +1,35 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-
-export type PipelineStage =
-  | 'journal'
-  | 'discover'
-  | 'references'
-  | 'plan'
-  | 'write'
-  | 'review'
-  | 'revision'
-  | 'submit';
 
 interface PipelineState {
-  // Current stage
-  currentStage: PipelineStage;
-  setStage: (stage: PipelineStage) => void;
+  // Domain selection
+  selectedDomain: string;
+  selectDomain: (domain: string) => void;
 
-  // Selections
+  // Journal selection
   selectedJournal: string | null;
-  selectJournal: (name: string) => void;
+  selectJournal: (journal: string) => void;
 
-  selectedTopicId: string | null;
-  selectTopic: (id: string) => void;
-
-  selectedDirectionId: string | null;
-  selectDirection: (id: string) => void;
-
-  selectedSessionId: string | null;
-  selectSession: (id: string | null) => void;
-
-  currentPlanId: string | null;
-  setPlanId: (id: string) => void;
-
-  currentManuscriptId: string | null;
-  setManuscriptId: (id: string) => void;
-
-  reviewResult: any | null;
-  setReviewResult: (result: any) => void;
-
-  // Uploaded paper IDs (for "From Corpus" mode)
-  uploadedPaperIds: string[];
-  addUploadedPaperId: (id: string) => void;
-  clearUploadedPaperIds: () => void;
-
-  // Task tracking
-  activeTaskId: string | null;
-  setActiveTaskId: (id: string | null) => void;
-
-  // Stage unlocking
-  completedStages: PipelineStage[];
-  completeStage: (stage: PipelineStage) => void;
-  isStageUnlocked: (stage: PipelineStage) => boolean;
+  // Pipeline state
+  currentStep: string;
+  setStep: (step: string) => void;
 
   // Reset
   resetPipeline: () => void;
 }
 
-const STAGE_ORDER: PipelineStage[] = [
-  'journal', 'discover', 'references', 'plan', 'write', 'review', 'revision', 'submit',
-];
+export const usePipelineStore = create<PipelineState>((set) => ({
+  selectedDomain: 'comparative_literature',
+  selectDomain: (domain) => set({ selectedDomain: domain, selectedJournal: null }),
 
-function addUnique(arr: PipelineStage[], item: PipelineStage): PipelineStage[] {
-  return arr.includes(item) ? arr : [...arr, item];
-}
-
-const initialState = {
-  currentStage: 'journal' as PipelineStage,
   selectedJournal: null,
-  selectedTopicId: null,
-  selectedDirectionId: null,
-  selectedSessionId: null,
-  currentPlanId: null,
-  currentManuscriptId: null,
-  reviewResult: null,
-  activeTaskId: null,
-  uploadedPaperIds: [] as string[],
-  completedStages: [] as PipelineStage[],
-};
+  selectJournal: (journal) => set({ selectedJournal: journal }),
 
-export const usePipelineStore = create<PipelineState>()(
-  persist(
-    (set, get) => ({
-      ...initialState,
+  currentStep: 'discover',
+  setStep: (step) => set({ currentStep: step }),
 
-      setStage: (stage) => set({ currentStage: stage }),
-
-      selectJournal: (name) =>
-        set({
-          selectedJournal: name,
-          currentStage: 'discover',
-          completedStages: addUnique(get().completedStages, 'journal'),
-        }),
-
-      selectTopic: (id) =>
-        set({
-          selectedTopicId: id,
-          completedStages: addUnique(get().completedStages, 'discover'),
-        }),
-
-      selectDirection: (id) => set({ selectedDirectionId: id }),
-
-      selectSession: (id) => set({ selectedSessionId: id }),
-
-      addUploadedPaperId: (id) =>
-        set((state) => ({
-          uploadedPaperIds: state.uploadedPaperIds.includes(id)
-            ? state.uploadedPaperIds
-            : [...state.uploadedPaperIds, id],
-        })),
-
-      clearUploadedPaperIds: () => set({ uploadedPaperIds: [] }),
-
-      setPlanId: (id) =>
-        set({
-          currentPlanId: id,
-          completedStages: addUnique(get().completedStages, 'plan'),
-        }),
-
-      setManuscriptId: (id) =>
-        set({
-          currentManuscriptId: id,
-          completedStages: addUnique(get().completedStages, 'write'),
-        }),
-
-      setReviewResult: (result) =>
-        set({
-          reviewResult: result,
-          completedStages: addUnique(get().completedStages, 'review'),
-        }),
-
-      setActiveTaskId: (id) => set({ activeTaskId: id }),
-
-      completeStage: (stage) =>
-        set({
-          completedStages: addUnique(get().completedStages, stage),
-        }),
-
-      isStageUnlocked: (stage) => {
-        const { completedStages, selectedJournal } = get();
-        if (stage === 'journal') return true;
-        if (stage === 'discover') return !!selectedJournal;
-        if (stage === 'references') return completedStages.includes('discover');
-        if (stage === 'plan') return completedStages.includes('discover') || completedStages.includes('references') || !!selectedJournal;
-        if (stage === 'write') return completedStages.includes('plan');
-        if (stage === 'review') return completedStages.includes('write');
-        if (stage === 'revision') return completedStages.includes('review');
-        if (stage === 'submit') return completedStages.includes('review');
-        return false;
-      },
-
-      resetPipeline: () => set(initialState),
+  resetPipeline: () =>
+    set({
+      selectedJournal: null,
+      currentStep: 'discover',
     }),
-    { name: 'ai-researcher-pipeline' }
-  )
-);
-
-export function getStageName(stage: PipelineStage): string {
-  const names: Record<PipelineStage, string> = {
-    journal: 'Journal',
-    discover: 'Discover',
-    references: 'References',
-    plan: 'Plan',
-    write: 'Write',
-    review: 'Review',
-    revision: 'Revision',
-    submit: 'Submit',
-  };
-  return names[stage];
-}
-
-export function getStageIndex(stage: PipelineStage): number {
-  return STAGE_ORDER.indexOf(stage);
-}
-
-export { STAGE_ORDER };
+}));

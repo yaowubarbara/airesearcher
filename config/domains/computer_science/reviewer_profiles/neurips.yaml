@@ -1,0 +1,22 @@
+journal: "NeurIPS"
+review_style:
+  strictness: very_high
+  focus_areas:
+    - "novelty and significance of contribution"
+    - "soundness of theoretical claims"
+    - "thoroughness of experimental evaluation"
+    - "reproducibility (code, hyperparameters, compute budget)"
+  common_rejection_reasons:
+    - "incremental contribution over existing work"
+    - "insufficient baselines or unfair comparisons"
+    - "missing ablation studies"
+    - "overclaimed results without statistical significance"
+  expected_reference_count: "30-60"
+  preferred_theoretical_frameworks:
+    - "deep learning theory"
+    - "optimization"
+    - "statistical learning theory"
+  editorial_preferences:
+    - "Values both theoretical and empirical contributions"
+    - "Emphasis on reproducibility and open science"
+    - "Interested in novel problem formulations"

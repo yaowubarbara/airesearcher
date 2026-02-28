@@ -1,0 +1,104 @@
+journals:
+  # ============ Top-tier General Medical ============
+  - name: "The New England Journal of Medicine"
+    issn: "0028-4793"
+    publisher: "Massachusetts Medical Society"
+    language: en
+    citation_style: "Vancouver"
+    semantic_scholar_venue: "The New England Journal of Medicine"
+    scope: "General medicine, clinical research"
+
+  - name: "The Lancet"
+    issn: "0140-6736"
+    publisher: "Elsevier"
+    language: en
+    citation_style: "Vancouver"
+    semantic_scholar_venue: "The Lancet"
+    scope: "General medicine, global health"
+
+  - name: "JAMA"
+    issn: "0098-7484"
+    publisher: "American Medical Association"
+    language: en
+    citation_style: "AMA"
+    semantic_scholar_venue: "JAMA"
+    scope: "General medicine"
+
+  - name: "BMJ"
+    issn: "0959-8138"
+    publisher: "BMJ Publishing Group"
+    language: en
+    citation_style: "Vancouver"
+    semantic_scholar_venue: "BMJ"
+    scope: "General medicine, evidence-based practice"
+
+  # ============ Nature Family ============
+  - name: "Nature Medicine"
+    issn: "1078-8956"
+    publisher: "Springer Nature"
+    language: en
+    citation_style: "Nature"
+    semantic_scholar_venue: "Nature Medicine"
+    scope: "Translational and clinical research"
+
+  - name: "Nature Biotechnology"
+    issn: "1087-0156"
+    publisher: "Springer Nature"
+    language: en
+    citation_style: "Nature"
+    semantic_scholar_venue: "Nature Biotechnology"
+    scope: "Biotechnology, genetic engineering"
+
+  # ============ Cell Family ============
+  - name: "Cell"
+    issn: "0092-8674"
+    publisher: "Elsevier"
+    language: en
+    citation_style: "Cell"
+    semantic_scholar_venue: "Cell"
+    scope: "Molecular and cellular biology"
+
+  - name: "Cancer Cell"
+    issn: "1535-6108"
+    publisher: "Elsevier"
+    language: en
+    citation_style: "Cell"
+    semantic_scholar_venue: "Cancer Cell"
+    scope: "Cancer biology"
+
+  # ============ Specialized ============
+  - name: "The Lancet Oncology"
+    issn: "1470-2045"
+    publisher: "Elsevier"
+    language: en
+    citation_style: "Vancouver"
+    semantic_scholar_venue: "The Lancet Oncology"
+    scope: "Clinical oncology"
+
+  - name: "PLOS Medicine"
+    issn: "1549-1676"
+    publisher: "PLOS"
+    language: en
+    citation_style: "Vancouver"
+    semantic_scholar_venue: "PLOS Medicine"
+    scope: "Medicine, public health"
+
+  - name: "Annals of Internal Medicine"
+    issn: "0003-4819"
+    publisher: "American College of Physicians"
+    language: en
+    citation_style: "Vancouver"
+    semantic_scholar_venue: "Annals of Internal Medicine"
+    scope: "Internal medicine"
+
+  - name: "Circulation"
+    issn: "0009-7322"
+    publisher: "American Heart Association"
+    language: en
+    citation_style: "AMA"
+    semantic_scholar_venue: "Circulation"
+    scope: "Cardiovascular medicine"
+
+schedule:
+  scan_interval_hours: 168
+  lookback_days: 60

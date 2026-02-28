@@ -1,0 +1,46 @@
+# Computer Science — Domain Configuration
+name: "Computer Science"
+domain_id: computer_science
+description: >
+  Computer science research spanning machine learning, systems, software engineering,
+  NLP, and theoretical CS. Emphasizes reproducibility, benchmarks, and technical rigor.
+
+persona: "senior computer science researcher with expertise in machine learning and systems"
+analysis_method: "technical analysis and empirical evaluation"
+
+icon: "cpu"
+color: "#06b6d4"
+
+annotation_schema:
+  categories:
+    - problem_statement    # Research problem addressed
+    - approach             # Proposed method / algorithm
+    - baseline             # Compared baselines
+    - dataset              # Datasets used
+    - metric               # Evaluation metrics
+    - result               # Key results / findings
+    - limitation           # Acknowledged limitations
+    - future_work          # Proposed future directions
+  relations:
+    - outperforms
+    - extends
+    - contradicts
+    - applies_to
+
+review_criteria:
+  - technical_soundness
+  - novelty_of_approach
+  - reproducibility
+  - experimental_rigor
+  - clarity_of_presentation
+  - significance_of_results
+
+writing_conventions:
+  citation_style: "ACM / IEEE"
+  typical_word_count: "6000-10000"
+  key_features:
+    - "Clear problem formulation and motivation"
+    - "Formal algorithm description or pseudocode"
+    - "Comprehensive experimental evaluation"
+    - "Ablation studies and error analysis"
+    - "Reproducibility details (code, hyperparameters)"

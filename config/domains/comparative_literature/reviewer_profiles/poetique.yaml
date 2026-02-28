@@ -1,0 +1,31 @@
+journal: "Poétique"
+review_style:
+  strictness: high
+  focus_areas:
+    - "rigueur de l'analyse formelle et narratologique"
+    - "ancrage dans la tradition poéticienne (Genette, Todorov, Hamon)"
+    - "originalité de la proposition théorique"
+    - "qualité de la lecture rapprochée"
+  common_rejection_reasons:
+    - "analyse trop thématique, insuffisamment formelle"
+    - "cadre théorique non maîtrisé ou mal articulé"
+    - "manque d'originalité par rapport aux travaux existants"
+    - "argumentation descriptive plutôt qu'analytique"
+  expected_reference_count: "25-40"
+  expected_close_reading_passages: "4-6"
+  preferred_theoretical_frameworks:
+    - "narratologie (Genette, Todorov, Prince)"
+    - "sémiotique littéraire (Greimas, Hamon)"
+    - "stylistique (Spitzer, Riffaterre)"
+    - "poétique des genres"
+    - "théorie de la fiction (Schaeffer, Hamburger)"
+  editorial_preferences:
+    - "Privilégie les approches formelles et structurales"
+    - "Attendu: une proposition théorique claire, pas seulement une étude de cas"
+    - "Le corpus d'analyse peut être limité si la portée théorique est large"
+    - "Rédaction exclusivement en français"
+    - "Héritage structuraliste à respecter tout en acceptant les évolutions contemporaines"
+learned_from_recent_publications:
+  hot_topics: []
+  frequent_authors_cited: []
+  avg_word_count: 0

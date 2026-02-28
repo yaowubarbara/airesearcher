@@ -1,0 +1,33 @@
+journal_info:
+  name: Nature Medicine
+  publisher: Springer Nature
+  language: en
+  scope: "Translational and clinical biomedical research"
+formatting:
+  citation_style: "Nature (numbered)"
+  abstract: structured
+  word_limit: 3000
+  reference_examples:
+    - type: article
+      example: >
+        Smith, J. et al. Novel biomarker for early cancer detection.
+        Nat. Med. 28, 1234-1240 (2022).
+  writing_conventions:
+    - "Structured abstract (Background, Methods, Results, Conclusions)"
+    - "Clear clinical relevance stated in introduction"
+    - "CONSORT/STROBE guideline adherence"
+    - "Effect sizes with confidence intervals"
+learned_patterns:
+  avg_paragraph_length: 100
+  avg_sentence_length: 28
+  common_section_headings:
+    - Abstract
+    - Introduction
+    - Results
+    - Discussion
+    - Methods
+    - References
+  typical_argument_structures:
+    - "Clinical need and gap in current knowledge"
+    - "Novel finding with mechanistic insight"
+    - "Translational potential"

@@ -10,6 +10,7 @@ router = APIRouter(tags=["discover"])
 class DiscoverRequest(BaseModel):
     journal: str
     limit: int = 200
+    domain: str = "comparative_literature"
 
 
 @router.post("/discover")
@@ -41,7 +42,7 @@ async def start_discovery(req: DiscoverRequest, db=Depends(get_db), llm_router=D
 
         # Step 1: Annotate
         await task_mgr.update_progress(task_id, 0.2, "Annotating papers with P-ontology...")
-        annotations = await annotate_corpus(papers, llm_router, db)
+        annotations = await annotate_corpus(papers, llm_router, db, domain_id=req.domain)
         total_ann = len(annotations)
         await task_mgr.update_progress(task_id, 0.6, f"Annotated {total_ann} papers")
 
@@ -55,7 +56,7 @@ async def start_discovery(req: DiscoverRequest, db=Depends(get_db), llm_router=D
             # Full clustering from scratch
             await task_mgr.update_progress(task_id, 0.7, "Clustering into directions...")
             db.delete_all_directions_and_topics()
-            directions = await cluster_into_directions(annotations, papers, llm_router)
+            directions = await cluster_into_directions(annotations, papers, llm_router, domain_id=req.domain)
             directions = await compress_directions(directions, llm_router, max_directions=10)
             compute_recency_scores(directions, papers, current_year)
 
@@ -116,7 +117,8 @@ async def start_discovery(req: DiscoverRequest, db=Depends(get_db), llm_router=D
 
             async def _gen_topics(direction):
                 return direction, await generate_topics_for_direction(
-                    direction, papers, annotations, llm_router
+                    direction, papers, annotations, llm_router,
+                    domain_id=req.domain,
                 )
 
             results = await asyncio.gather(

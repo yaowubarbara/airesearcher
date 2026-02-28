@@ -13,6 +13,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from src.domain_config import get_domain_config, list_domains
 from src.knowledge_base.db import Database
 from src.knowledge_base.vector_store import VectorStore
 from src.llm.router import LLMRouter
@@ -46,9 +47,16 @@ def get_vs() -> VectorStore:
 
 @click.group()
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
-def main(verbose: bool) -> None:
-    """AI Academic Research Agent for Comparative Literature."""
+@click.option("--domain", "-d", default="comparative_literature",
+              help="Research domain (comparative_literature, computer_science, biomedical)")
+@click.pass_context
+def main(ctx, verbose: bool, domain: str) -> None:
+    """AI Academic Research Agent — multi-domain research pipeline."""
     setup_logging(verbose)
+    ctx.ensure_object(dict)
+    ctx.obj["domain_id"] = domain
+    domain_config = get_domain_config(domain)
+    console.print(f"[dim]Domain: {domain_config.name}[/dim]")
 
 
 # --- Monitor commands ---
@@ -120,7 +128,8 @@ def index(pdf_path: str, paper_id: str | None) -> None:
 @click.option("--limit", default=200, help="Max papers to annotate")
 @click.option("--annotate-only", is_flag=True, help="Only annotate, skip clustering and topic generation")
 @click.option("--reset", is_flag=True, help="Clear all existing directions/topics before running")
-def discover(limit: int, annotate_only: bool, reset: bool) -> None:
+@click.pass_context
+def discover(ctx, limit: int, annotate_only: bool, reset: bool) -> None:
     """Discover research gaps via P-ontology annotation + direction clustering."""
     from datetime import datetime as _dt
 
@@ -132,6 +141,8 @@ def discover(limit: int, annotate_only: bool, reset: bool) -> None:
         delta_cluster_directions,
     )
     from src.topic_discovery.topic_scorer import generate_topics_for_direction
+
+    domain_id = ctx.obj.get("domain_id", "comparative_literature")
 
     async def _run():
         db = get_db()
@@ -147,7 +158,7 @@ def discover(limit: int, annotate_only: bool, reset: bool) -> None:
                 console.print("[yellow]Cleared all existing directions and topics.[/yellow]")
 
             console.print(f"Annotating {len(papers)} papers with P-ontology...")
-            annotations = await annotate_corpus(papers, router, db)
+            annotations = await annotate_corpus(papers, router, db, domain_id=domain_id)
             console.print(f"[green]{len(annotations)} annotations total[/green]")
 
             if annotate_only:
@@ -158,7 +169,7 @@ def discover(limit: int, annotate_only: bool, reset: bool) -> None:
 
             if not existing_directions:
                 console.print("\nClustering into problématique directions...")
-                directions = await cluster_into_directions(annotations, papers, router)
+                directions = await cluster_into_directions(annotations, papers, router, domain_id=domain_id)
                 directions = await compress_directions(directions, router, max_directions=10)
                 compute_recency_scores(directions, papers, current_year)
 
@@ -220,7 +231,8 @@ def discover(limit: int, annotate_only: bool, reset: bool) -> None:
                 if direction.id in changed_dir_ids:
                     console.print(f"\nGenerating topics for: [bold]{direction.title}[/bold]")
                     topics = await generate_topics_for_direction(
-                        direction, papers, annotations, router
+                        direction, papers, annotations, router,
+                        domain_id=domain_id,
                     )
                     topic_ids = []
                     for topic in topics:
@@ -304,10 +316,13 @@ def _display_primary_text_report(report) -> None:
 @click.argument("topic_id")
 @click.option("--journal", required=True, help="Target journal name")
 @click.option("--language", default="en", type=click.Choice(["en", "zh", "fr"]))
-def plan(topic_id: str, journal: str, language: str) -> None:
+@click.pass_context
+def plan(ctx, topic_id: str, journal: str, language: str) -> None:
     """Create a research plan for a topic."""
     from src.knowledge_base.models import Language
     from src.research_planner.planner import ResearchPlanner
+
+    domain_id = ctx.obj.get("domain_id", "comparative_literature")
 
     async def _run():
         db = get_db()
@@ -320,7 +335,7 @@ def plan(topic_id: str, journal: str, language: str) -> None:
                 console.print(f"[red]Topic {topic_id} not found[/red]")
                 return
 
-            planner = ResearchPlanner(db, vs, router)
+            planner = ResearchPlanner(db, vs, router, domain_id=domain_id)
             result = await planner.create_plan(
                 topic=topic,
                 target_journal=journal,
@@ -534,9 +549,12 @@ def format_manuscript(manuscript_id: str, output: str) -> None:
 @main.command()
 @click.option("--journal", required=True, help="Target journal name")
 @click.option("--language", default="en", type=click.Choice(["en", "zh", "fr"]))
-def pipeline(journal: str, language: str) -> None:
+@click.pass_context
+def pipeline(ctx, journal: str, language: str) -> None:
     """Run the full research pipeline from monitoring to submission."""
     from src.orchestrator import WorkflowState, create_workflow
+
+    domain_id = ctx.obj.get("domain_id", "comparative_literature")
 
     async def _run():
         db = get_db()
@@ -547,6 +565,7 @@ def pipeline(journal: str, language: str) -> None:
             initial_state = WorkflowState(
                 target_journal=journal,
                 target_language=language,
+                domain_id=domain_id,
             )
             console.print(Panel("[bold]Starting Full Research Pipeline[/bold]"))
             console.print(f"Target journal: {journal}")

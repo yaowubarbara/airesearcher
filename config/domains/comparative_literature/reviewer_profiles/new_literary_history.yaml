@@ -1,0 +1,30 @@
+journal: "New Literary History"
+review_style:
+  strictness: very_high
+  focus_areas:
+    - "theoretical originality and sophistication"
+    - "engagement with the journal's intellectual tradition"
+    - "methodological self-awareness"
+    - "quality of argumentation and logical rigor"
+  common_rejection_reasons:
+    - "lack of theoretical novelty; merely applies existing framework"
+    - "insufficient engagement with relevant NLH scholarship"
+    - "argument is descriptive rather than analytical"
+    - "interdisciplinary claims not substantiated"
+  expected_reference_count: "35-50"
+  expected_close_reading_passages: "3-5"
+  preferred_theoretical_frameworks:
+    - "formalism / literary theory (Culler, de Man)"
+    - "hermeneutics (Gadamer, Ricoeur)"
+    - "reception aesthetics (Jauss, Iser)"
+    - "affect theory (Sedgwick, Berlant)"
+    - "new materialism (Bennett, Barad)"
+  editorial_preferences:
+    - "Values meta-theoretical reflection on literary study itself"
+    - "Welcomes interdisciplinary approaches grounded in close textual work"
+    - "Favors essays that pose genuine conceptual problems"
+    - "Recent interest in digital humanities and computational methods"
+learned_from_recent_publications:
+  hot_topics: []
+  frequent_authors_cited: []
+  avg_word_count: 0

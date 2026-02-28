@@ -1,0 +1,122 @@
+journals:
+  # ============ Top-tier ML/AI ============
+  - name: "NeurIPS"
+    issn: "2331-8422"
+    publisher: "NeurIPS Foundation"
+    language: en
+    citation_style: "NeurIPS"
+    semantic_scholar_venue: "Neural Information Processing Systems"
+    scope: "Machine learning, computational neuroscience, AI"
+
+  - name: "ICML"
+    issn: "1938-7228"
+    publisher: "PMLR"
+    language: en
+    citation_style: "ICML"
+    semantic_scholar_venue: "International Conference on Machine Learning"
+    scope: "Machine learning theory and applications"
+
+  - name: "ICLR"
+    issn: null
+    publisher: "OpenReview"
+    language: en
+    citation_style: "ICLR"
+    semantic_scholar_venue: "International Conference on Learning Representations"
+    scope: "Representation learning, deep learning"
+
+  # ============ NLP ============
+  - name: "ACL"
+    issn: null
+    publisher: "Association for Computational Linguistics"
+    language: en
+    citation_style: "ACL"
+    semantic_scholar_venue: "Annual Meeting of the Association for Computational Linguistics"
+    scope: "Natural language processing, computational linguistics"
+
+  - name: "EMNLP"
+    issn: null
+    publisher: "ACL"
+    language: en
+    citation_style: "ACL"
+    semantic_scholar_venue: "Conference on Empirical Methods in Natural Language Processing"
+    scope: "Empirical methods in NLP"
+
+  - name: "NAACL"
+    issn: null
+    publisher: "ACL"
+    language: en
+    citation_style: "ACL"
+    semantic_scholar_venue: "North American Chapter of the ACL"
+    scope: "NLP research"
+
+  # ============ Systems ============
+  - name: "OSDI"
+    issn: null
+    publisher: "USENIX"
+    language: en
+    citation_style: "USENIX"
+    semantic_scholar_venue: "USENIX Symposium on Operating Systems Design and Implementation"
+    scope: "Operating systems, distributed systems"
+
+  - name: "SOSP"
+    issn: null
+    publisher: "ACM"
+    language: en
+    citation_style: "ACM"
+    semantic_scholar_venue: "ACM Symposium on Operating Systems Principles"
+    scope: "Operating systems principles"
+
+  # ============ Software Engineering ============
+  - name: "ICSE"
+    issn: null
+    publisher: "IEEE/ACM"
+    language: en
+    citation_style: "IEEE"
+    semantic_scholar_venue: "International Conference on Software Engineering"
+    scope: "Software engineering methodology and tools"
+
+  - name: "FSE"
+    issn: null
+    publisher: "ACM"
+    language: en
+    citation_style: "ACM"
+    semantic_scholar_venue: "Foundations of Software Engineering"
+    scope: "Software engineering foundations"
+
+  # ============ CV ============
+  - name: "CVPR"
+    issn: null
+    publisher: "IEEE"
+    language: en
+    citation_style: "IEEE"
+    semantic_scholar_venue: "IEEE Conference on Computer Vision and Pattern Recognition"
+    scope: "Computer vision and pattern recognition"
+
+  - name: "ICCV"
+    issn: null
+    publisher: "IEEE"
+    language: en
+    citation_style: "IEEE"
+    semantic_scholar_venue: "IEEE International Conference on Computer Vision"
+    scope: "Computer vision"
+
+  # ============ Theory ============
+  - name: "STOC"
+    issn: null
+    publisher: "ACM"
+    language: en
+    citation_style: "ACM"
+    semantic_scholar_venue: "ACM Symposium on Theory of Computing"
+    scope: "Theoretical computer science"
+
+  - name: "FOCS"
+    issn: null
+    publisher: "IEEE"
+    language: en
+    citation_style: "IEEE"
+    semantic_scholar_venue: "IEEE Symposium on Foundations of Computer Science"
+    scope: "Foundations of computer science"
+
+schedule:
+  scan_interval_hours: 168
+  lookback_days: 90

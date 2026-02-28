@@ -1,0 +1,18 @@
+journal: "ACL"
+review_style:
+  strictness: high
+  focus_areas:
+    - "linguistic motivation and grounding"
+    - "evaluation methodology"
+    - "error analysis and qualitative examples"
+    - "broader impact and ethical considerations"
+  common_rejection_reasons:
+    - "lack of linguistic insight"
+    - "evaluation on English only without justification"
+    - "missing human evaluation for generation tasks"
+    - "no error analysis"
+  expected_reference_count: "25-50"
+  editorial_preferences:
+    - "Values interdisciplinary work with linguistics"
+    - "Encourages multilingual and low-resource NLP"
+    - "Requires responsible NLP practices"

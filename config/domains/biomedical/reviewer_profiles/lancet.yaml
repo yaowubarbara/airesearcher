@@ -1,0 +1,18 @@
+journal: "The Lancet"
+review_style:
+  strictness: very_high
+  focus_areas:
+    - "global health relevance"
+    - "methodological rigor (RCT design, blinding)"
+    - "patient-centered outcomes"
+    - "generalizability of findings"
+  common_rejection_reasons:
+    - "single-center study with limited generalizability"
+    - "inadequate statistical analysis plan"
+    - "missing CONSORT/STROBE checklist"
+    - "insufficient follow-up period"
+  expected_reference_count: "30-50"
+  editorial_preferences:
+    - "Strong focus on global health equity"
+    - "Values pragmatic clinical trials"
+    - "Requires trial registration"

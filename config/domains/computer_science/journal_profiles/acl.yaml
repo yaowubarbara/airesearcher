@@ -1,0 +1,31 @@
+journal_info:
+  name: ACL
+  publisher: Association for Computational Linguistics
+  language: en
+  scope: "Natural language processing, computational linguistics"
+formatting:
+  citation_style: "ACL Anthology (author-year)"
+  abstract: required
+  word_limit: null
+  page_limit: 8
+  reference_examples:
+    - type: conference
+      example: >
+        Devlin, J. et al. (2019). BERT: Pre-training of Deep Bidirectional
+        Transformers for Language Understanding. In Proceedings of NAACL-HLT.
+  writing_conventions:
+    - "Linguistic motivation for NLP approaches"
+    - "Error analysis with concrete examples"
+    - "Multilingual evaluation when applicable"
+    - "Ethical considerations section"
+learned_patterns:
+  avg_paragraph_length: 90
+  avg_sentence_length: 24
+  common_section_headings:
+    - Introduction
+    - Related Work
+    - Model / Approach
+    - Experimental Setup
+    - Results
+    - Analysis
+    - Conclusion

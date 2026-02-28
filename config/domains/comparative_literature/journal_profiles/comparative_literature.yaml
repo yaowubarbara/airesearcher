@@ -1,0 +1,47 @@
+journal_info:
+  name: Comparative Literature
+  issn: null
+  publisher: null
+  language: en
+  scope: null
+  url: null
+formatting:
+  citation_style: MLA
+  citation_method: parenthetical
+  bibliography: REFERENCES
+  abstract: none
+  word_limit: null
+  block_quote: indent
+  footnotes: footnotes
+  reference_examples:
+  - type: book
+    example: Seuss, Dr. Horton Hears a Who! Random House, 1954.
+  - type: article
+    example: Shalamov, Varlam. "The National Borders of Poetry and Free Verse." 1963.
+  writing_conventions:
+  - Original language quotations are provided with English translations in parentheses
+    or block
+  - Epigraphs are used to frame the argument
+  - Substantive footnotes are employed for discursive asides
+  - Author names appear in uppercase at the start of the text
+learned_patterns:
+  avg_paragraph_length: 153
+  avg_sentence_length: 33
+  passive_voice_ratio: 0.15
+  common_section_headings:
+  - REFERENCES
+  typical_argument_structures:
+  - Close reading of primary texts
+  - Historical and philological contextualization
+  - Theoretical application (e.g., postcolonial, political theory)
+  frequent_theoretical_frameworks:
+  - Philology
+  - Postcolonial Studies
+  - Political Theory
+  - Digital Humanities
+  hedging_frequency: medium
+  notes:
+  - The journal features significant multilingual engagement, citing sources in Spanish,
+    Russian, and German.
+  - Articles often begin immediately with text or epigraphs rather than abstracts.
+  - Published by Duke University Press on behalf of the University of Oregon.

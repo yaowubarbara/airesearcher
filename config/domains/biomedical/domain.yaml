@@ -1,0 +1,46 @@
+# Biomedical Sciences — Domain Configuration
+name: "Biomedical Sciences"
+domain_id: biomedical
+description: >
+  Biomedical research covering clinical medicine, molecular biology, epidemiology,
+  and translational science. Emphasizes statistical rigor and clinical significance.
+
+persona: "senior biomedical researcher with expertise in clinical and translational research"
+analysis_method: "systematic analysis and evidence-based evaluation"
+
+icon: "heart-pulse"
+color: "#10b981"
+
+annotation_schema:
+  categories:
+    - hypothesis           # Research hypothesis
+    - study_design         # Study design (RCT, cohort, etc.)
+    - population           # Study population / sample
+    - intervention         # Treatment / intervention
+    - outcome_measure      # Primary/secondary outcomes
+    - statistical_method   # Statistical analysis used
+    - finding              # Key findings
+    - clinical_significance # Clinical implications
+  relations:
+    - supports
+    - contradicts
+    - extends
+    - replaces
+
+review_criteria:
+  - statistical_rigor
+  - clinical_significance
+  - study_design_appropriateness
+  - ethical_compliance
+  - reproducibility
+  - novelty
+
+writing_conventions:
+  citation_style: "Vancouver / AMA"
+  typical_word_count: "3000-6000"
+  key_features:
+    - "Structured abstract (Background, Methods, Results, Conclusions)"
+    - "CONSORT/STROBE/PRISMA guideline adherence"
+    - "Statistical reporting (CI, p-values, effect sizes)"
+    - "Conflict of interest disclosure"
+    - "Patient consent and ethics statements"

@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.deps import get_db, get_vs
-from api.routers import journals, discover, references, plan, write, review, submit, tasks, stats
+from api.routers import journals, discover, references, plan, write, review, submit, tasks, stats, domains
 
 
 @asynccontextmanager
@@ -40,6 +40,7 @@ app.add_middleware(
 )
 
 # Mount routers
+app.include_router(domains.router, prefix="/api")
 app.include_router(journals.router, prefix="/api")
 app.include_router(discover.router, prefix="/api")
 app.include_router(references.router, prefix="/api")

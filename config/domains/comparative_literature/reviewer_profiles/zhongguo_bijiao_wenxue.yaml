@@ -1,0 +1,33 @@
+journal: "中国比较文学"
+review_style:
+  strictness: high
+  focus_areas:
+    - "比较文学方法论的自觉运用"
+    - "中外文学比较的实质性深度"
+    - "对一手文本的细读能力"
+    - "理论框架与文本分析的结合"
+  common_rejection_reasons:
+    - "比较流于表面，缺乏深层对话"
+    - "对原始文本的细读不足"
+    - "理论框架与文本材料脱节"
+    - "仅做影响研究而无比较视野"
+    - "外语文献引用不足"
+  expected_reference_count: "20-35"
+  expected_close_reading_passages: "3-5"
+  preferred_theoretical_frameworks:
+    - "比较文学中国学派（曹顺庆、乐黛云）"
+    - "跨文明对话理论"
+    - "变异学"
+    - "影响研究与平行研究"
+    - "翻译研究（韦努蒂、勒菲弗尔）"
+    - "世界文学理论（达姆罗什、莫雷蒂）"
+  editorial_preferences:
+    - "重视中外文学的实质性比较，不能只是简单并置"
+    - "鼓励跨文明、跨语言的比较视角"
+    - "关注比较文学学科建设问题"
+    - "近年关注数字人文、生态批评等新兴方向"
+    - "需要中英文双语摘要"
+learned_from_recent_publications:
+  hot_topics: []
+  frequent_authors_cited: []
+  avg_word_count: 0

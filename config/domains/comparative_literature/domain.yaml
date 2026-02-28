@@ -1,0 +1,43 @@
+# Comparative Literature — Domain Configuration
+name: "Comparative Literature"
+domain_id: comparative_literature
+description: >
+  Cross-cultural literary analysis spanning multiple languages and traditions.
+  Focuses on intertextuality, translation theory, and world literature frameworks.
+
+persona: "senior comparative literature scholar specializing in cross-cultural literary analysis"
+analysis_method: "close reading and comparative textual analysis"
+
+icon: "book-open"
+color: "#6366f1"
+
+annotation_schema:
+  categories:
+    - problématique       # Core tension / question
+    - thèse               # Thesis / argument
+    - méthode             # Methodology used
+    - corpus              # Primary texts studied
+    - cadre_théorique     # Theoretical framework
+    - lacune              # Research gap identified
+    - apport              # Contribution to the field
+  relations:
+    - contradicts
+    - extends
+    - applies_to
+    - critiques
+
+review_criteria:
+  - originality_of_comparative_framework
+  - depth_of_close_reading
+  - multilingual_engagement
+  - theoretical_rigor
+  - contribution_to_field
+
+writing_conventions:
+  citation_style: "MLA / Chicago"
+  typical_word_count: "8000-12000"
+  key_features:
+    - "Extended close readings of primary texts"
+    - "Engagement with original-language quotations"
+    - "Comparative rather than parallel structure"
+    - "Theoretical framework justification"

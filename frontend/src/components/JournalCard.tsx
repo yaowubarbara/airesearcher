@@ -2,58 +2,45 @@
 
 import type { Journal } from '@/lib/types';
 
-interface Props {
+interface JournalCardProps {
   journal: Journal;
   onSelect: (name: string) => void;
 }
 
-const langFlags: Record<string, string> = {
-  en: 'EN',
-  zh: 'ZH',
-  fr: 'FR',
+const LANG_FLAGS: Record<string, string> = {
+  en: '🇬🇧',
+  zh: '🇨🇳',
+  fr: '🇫🇷',
 };
 
-export default function JournalCard({ journal, onSelect }: Props) {
+export default function JournalCard({ journal, onSelect }: JournalCardProps) {
   return (
     <button
       onClick={() => journal.is_active && onSelect(journal.name)}
-      className={`relative text-left p-5 rounded-lg border transition-all ${
-        journal.is_active
-          ? 'bg-bg-card border-border hover:border-accent hover:shadow-lg hover:shadow-accent/5 cursor-pointer'
-          : 'bg-bg-card/50 border-border cursor-not-allowed'
-      }`}
       disabled={!journal.is_active}
+      className={`
+        p-4 rounded-lg border text-left transition-all duration-150
+        ${journal.is_active
+          ? 'border-border hover:border-accent hover:shadow-md cursor-pointer bg-bg-secondary'
+          : 'border-border/50 opacity-50 cursor-not-allowed bg-bg-tertiary'
+        }
+      `}
     >
-      {!journal.is_active && (
-        <div className="absolute inset-0 bg-bg-primary/60 backdrop-blur-[1px] rounded-lg flex items-center justify-center z-10">
-          <span className="bg-gray-100 text-text-secondary text-xs font-medium px-3 py-1 rounded-full">
-            Coming Soon
-          </span>
-        </div>
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-base">{LANG_FLAGS[journal.language] || '🌐'}</span>
+        <h3 className="font-medium text-text-primary text-sm truncate">{journal.name}</h3>
+      </div>
+      <p className="text-text-tertiary text-xs truncate">{journal.publisher}</p>
+      <p className="text-text-tertiary text-xs mt-1 line-clamp-2">{journal.scope}</p>
+      {journal.is_active ? (
+        <span className="inline-block mt-2 px-2 py-0.5 text-xs rounded-full bg-accent/10 text-accent">
+          Active
+        </span>
+      ) : (
+        <span className="inline-block mt-2 px-2 py-0.5 text-xs rounded-full bg-bg-tertiary text-text-tertiary">
+          Coming Soon
+        </span>
       )}
-
-      <div className="flex items-start justify-between mb-3">
-        <h3 className="font-semibold text-text-primary text-sm leading-tight pr-2">
-          {journal.name}
-        </h3>
-        <span className="text-[10px] font-mono bg-gray-100 text-text-secondary px-1.5 py-0.5 rounded flex-shrink-0">
-          {langFlags[journal.language] || journal.language.toUpperCase()}
-        </span>
-      </div>
-
-      <p className="text-xs text-text-muted mb-3">{journal.publisher}</p>
-      <p className="text-xs text-text-secondary line-clamp-2">{journal.scope}</p>
-
-      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
-        <span className="text-[10px] bg-gray-50 text-text-muted px-2 py-0.5 rounded">
-          {journal.citation_style}
-        </span>
-        {journal.issn && (
-          <span className="text-[10px] text-text-muted">
-            {journal.issn}
-          </span>
-        )}
-      </div>
     </button>
   );
 }

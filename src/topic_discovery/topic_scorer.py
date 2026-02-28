@@ -1,223 +1,83 @@
-"""Generate concrete research topics for each problématique direction.
-
-Given a direction and its supporting paper annotations, proposes exactly 10
-specific research topics.
-"""
+"""Topic generation from research directions using domain-specific prompts."""
 
 from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import TYPE_CHECKING
 
-from src.knowledge_base.models import (
-    Paper,
-    PaperAnnotation,
-    ProblematiqueDirection,
-    TopicProposal,
-)
-from src.llm.router import LLMRouter
+from src.domain_config import get_domain_config
+
+if TYPE_CHECKING:
+    from src.knowledge_base.models import Annotation, Direction, Paper, Topic
+    from src.llm.router import LLMRouter
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Prompt
-# ---------------------------------------------------------------------------
-
-_TOPIC_GENERATION_PROMPT = """\
-You are a senior comparatist generating concrete research topics from a \
-broad problématique direction.
-
-DISCIPLINARY CONSTRAINT — COMPARATIVE LITERATURE ONLY:
-Every topic MUST be a comparative literature study.  This means:
-  - It must involve the CLOSE READING of specific literary texts (novels, \
-poetry, drama, essays, literary criticism — NOT policy documents, legal texts, \
-medical records, or social-science data).
-  - It must be COMPARATIVE: juxtaposing at least two literary traditions, \
-languages, periods, or theoretical frameworks.
-  - It must engage recognized literary-critical or theoretical discourse \
-(e.g. narratology, postcolonial theory, translation studies, affect theory, \
-ecocriticism, gender/queer theory, world literature debates).
-  - Do NOT propose topics from political science, international relations, \
-education, public health, urban planning, law, business, computer science, \
-or any non-literary discipline, even if the supporting papers touch on those \
-areas.  If a supporting paper is about supply chains or climate policy, \
-IGNORE IT — extract only the literary-critical thread.
-
---- DIRECTION ---
-Title: {direction_title}
-Description: {direction_description}
-Dominant tensions: {dominant_tensions}
-Dominant mediators: {dominant_mediators}
-Dominant scale: {dominant_scale}
-Dominant gap: {dominant_gap}
---- END DIRECTION ---
-
---- SUPPORTING PAPERS ({paper_count}) ---
-{paper_summaries}
---- END PAPERS ---
-
-Propose exactly **10** specific, publishable research topics that fall under \
-this direction.  Each topic should:
-  - Address the direction's dominant gap type
-  - Be specific enough for a 8000-12000 word journal article in a \
-comparative literature journal (e.g. *Comparative Literature*, *PMLA*, \
-*New Literary History*, *Poetics Today*)
-  - Name concrete literary texts, authors, or corpora (not vague gestures)
-  - Formulate a clear research question with a falsifiable thesis
-  - Compare across at least two literary traditions, languages, or periods
-
-Return a JSON array of exactly 10 objects with these keys:
-  "title": string (concise, max 20 words),
-  "research_question": string (one well-formed question),
-  "gap_description": string (2-3 sentences explaining the specific gap this \
-topic addresses)
-
-Output ONLY the JSON array, no other text.
-"""
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _parse_json_array(text: str) -> list[Any]:
-    """Robustly extract a JSON array from LLM output."""
-    text = text.strip()
-    if text.startswith("```"):
-        lines = text.split("\n")
-        lines = [l for l in lines if not l.strip().startswith("```")]
-        text = "\n".join(lines)
-    start = text.find("[")
-    end = text.rfind("]")
-    if start == -1 or end == -1:
-        return []
-    try:
-        return json.loads(text[start : end + 1])
-    except json.JSONDecodeError:
-        return []
-
-
-def _build_paper_summaries(
-    direction: ProblematiqueDirection,
-    papers: list[Paper],
-    annotations: list[PaperAnnotation],
-) -> str:
-    """Build summaries of papers belonging to this direction, with annotations."""
-    paper_map = {p.id: p for p in papers if p.id}
-    ann_map = {a.paper_id: a for a in annotations}
-
-    lines: list[str] = []
-    for pid in direction.paper_ids:
-        paper = paper_map.get(pid)
-        ann = ann_map.get(pid)
-        if not paper:
-            continue
-        title = paper.title[:80]
-        t_str = ", ".join(ann.tensions) if ann and ann.tensions else "(none)"
-        m_str = ", ".join(ann.mediators) if ann and ann.mediators else "(none)"
-        s_str = ann.scale.value if ann else "?"
-        g_str = ann.gap.value if ann else "?"
-        evidence = (ann.evidence[:150] if ann and ann.evidence else "")
-        lines.append(
-            f"- {title} ({paper.year})\n"
-            f"  T: {t_str} | M: {m_str} | S: {s_str} | G: {g_str}\n"
-            f"  {evidence}"
-        )
-
-    return "\n".join(lines) if lines else "(no supporting papers)"
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
 
 async def generate_topics_for_direction(
-    direction: ProblematiqueDirection,
+    direction: Direction,
     papers: list[Paper],
-    annotations: list[PaperAnnotation],
+    annotations: list[Annotation],
     llm_router: LLMRouter,
-) -> list[TopicProposal]:
-    """Generate 10 research topics for a single direction.
+    *,
+    domain_id: str = "comparative_literature",
+) -> list[Topic]:
+    """Generate publishable research topics for a direction.
 
-    Parameters
-    ----------
-    direction:
-        The problématique direction to generate topics for.
-    papers:
-        Full paper corpus (for building summaries).
-    annotations:
-        All P-ontology annotations.
-    llm_router:
-        LLM router (uses task_type="topic_discovery").
+    Args:
+        direction: The research direction to generate topics for.
+        papers: All papers in the corpus.
+        annotations: All annotations.
+        llm_router: LLM router.
+        domain_id: Research domain identifier.
 
-    Returns
-    -------
-    list[TopicProposal] with direction_id set.
+    Returns:
+        List of generated topics.
     """
-    paper_summaries = _build_paper_summaries(direction, papers, annotations)
+    domain = get_domain_config(domain_id)
+    prompt_template = domain.load_prompt("topic_generation.md")
 
-    user_prompt = _TOPIC_GENERATION_PROMPT.format(
+    # Build paper summaries for the direction
+    dir_papers = [p for p in papers if p.id in direction.paper_ids]
+    paper_summaries = "\n".join(
+        f"- {p.title}: {(p.abstract or '')[:200]}" for p in dir_papers[:20]
+    )
+
+    prompt = prompt_template.format(
         direction_title=direction.title,
-        direction_description=direction.description,
-        dominant_tensions=", ".join(direction.dominant_tensions) if direction.dominant_tensions else "(none)",
-        dominant_mediators=", ".join(direction.dominant_mediators) if direction.dominant_mediators else "(none)",
-        dominant_scale=direction.dominant_scale or "(unspecified)",
-        dominant_gap=direction.dominant_gap or "(unspecified)",
-        paper_count=len(direction.paper_ids),
+        direction_description=direction.description or "",
+        tensions="; ".join(direction.dominant_tensions[:5]),
         paper_summaries=paper_summaries,
     )
 
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are a senior researcher in comparative literature. "
-                "Return well-structured JSON only."
-            ),
-        },
-        {"role": "user", "content": user_prompt},
-    ]
-
     try:
-        import asyncio
-        response = await asyncio.to_thread(
-            llm_router.complete,
-            task_type="topic_discovery",
-            messages=messages,
-            temperature=0.5,
+        response = await llm_router.call(
+            task="topic_generation",
+            prompt=prompt,
+            temperature=0.7,
         )
-        raw_text = llm_router.get_response_text(response)
-        raw_topics = _parse_json_array(raw_text)
-    except Exception:
-        logger.exception("Topic generation LLM call failed for direction '%s'", direction.title)
+        topics_data = json.loads(response)
+        if isinstance(topics_data, dict):
+            topics_data = topics_data.get("topics", [])
+
+        from src.knowledge_base.models import Topic
+
+        topics = []
+        for td in topics_data:
+            topic = Topic(
+                title=td.get("title", ""),
+                thesis_seed=td.get("thesis_seed", ""),
+                direction_id=direction.id,
+                novelty=td.get("novelty", ""),
+                feasibility=td.get("feasibility", ""),
+            )
+            topics.append(topic)
+
+        logger.info(
+            "Generated %d topics for direction: %s", len(topics), direction.title
+        )
+        return topics
+    except Exception as e:
+        logger.error("Topic generation failed for %s: %s", direction.title, e)
         return []
-
-    topics: list[TopicProposal] = []
-    for t in raw_topics:
-        if not isinstance(t, dict) or "title" not in t:
-            continue
-        topic = TopicProposal(
-            title=t.get("title", "Untitled"),
-            research_question=t.get("research_question", ""),
-            gap_description=t.get("gap_description", ""),
-            direction_id=direction.id,
-            evidence_paper_ids=direction.paper_ids[:],
-            target_journals=[],
-            # Scores set to 0.0 — no separate scoring pass
-            novelty_score=0.0,
-            feasibility_score=0.0,
-            journal_fit_score=0.0,
-            timeliness_score=0.0,
-            overall_score=0.0,
-        )
-        topics.append(topic)
-
-    logger.info(
-        "Generated %d topics for direction '%s'",
-        len(topics),
-        direction.title,
-    )
-    return topics

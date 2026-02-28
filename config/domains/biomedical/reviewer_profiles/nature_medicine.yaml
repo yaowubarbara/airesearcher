@@ -1,0 +1,18 @@
+journal: "Nature Medicine"
+review_style:
+  strictness: very_high
+  focus_areas:
+    - "clinical significance and translational potential"
+    - "statistical rigor and appropriate methodology"
+    - "novelty of findings"
+    - "ethical compliance and patient consent"
+  common_rejection_reasons:
+    - "insufficient sample size or statistical power"
+    - "lack of mechanistic insight"
+    - "incremental advance over existing treatments"
+    - "missing validation cohort"
+  expected_reference_count: "40-60"
+  editorial_preferences:
+    - "Prioritizes high-impact translational research"
+    - "Values multi-center studies"
+    - "Requires data availability statements"

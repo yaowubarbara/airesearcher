@@ -1,0 +1,51 @@
+journal:
+  name: "Revue de littérature comparée"
+  issn: "0035-1466"
+  publisher: "Klincksieck"
+  language: "fr"
+
+formatting:
+  citation_style: "French academic"
+  citation_method: "footnote"
+  bibliography: true
+  bibliography_title: "Bibliographie"
+  bibliography_sort: "alphabetical_by_author"
+
+  abstract:
+    required: true
+    max_words: 200
+    language: "fr+en"
+
+  word_limit: "6000-10000"
+  sections:
+    use_numbered_headings: false
+    heading_style: "italic"
+
+  block_quote:
+    threshold_words: 30
+    indent: true
+
+  footnotes:
+    style: "footnote"
+    numbering: "per_page"
+
+  reference_examples:
+    book: 'Casanova, Pascale, *La République mondiale des Lettres*, Paris, Seuil, 1999.'
+    article: 'Pageaux, Daniel-Henri, « De l''imagerie culturelle à l''imaginaire », in *Précis de littérature comparée*, dir. Pierre Brunel et Yves Chevrel, Paris, PUF, 1989, p. 133-161.'
+
+  writing_conventions:
+    - "Guillemets français (« ») pour les citations"
+    - "Notes de bas de page numérotées par page"
+    - "Citations en langue originale avec traduction si nécessaire"
+    - "Éviter le je; préférer nous ou les tournures impersonnelles"
+
+learned_patterns:
+  avg_references: 30
+  avg_footnotes: 35
+  avg_close_reading_passages: "3-5"
+  common_theoretical_frameworks:
+    - "littérature comparée française (Pageaux, Chevrel)"
+    - "imagologie"
+    - "études de réception"
+    - "traductologie"
+  typical_structure: "introduction → cadre théorique → analyses textuelles → synthèse comparative → conclusion"

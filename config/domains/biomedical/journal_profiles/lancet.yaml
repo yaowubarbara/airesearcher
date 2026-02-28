@@ -1,0 +1,28 @@
+journal_info:
+  name: The Lancet
+  publisher: Elsevier
+  language: en
+  scope: "General medicine, global health"
+formatting:
+  citation_style: "Vancouver (numbered)"
+  abstract: structured
+  word_limit: 3500
+  reference_examples:
+    - type: article
+      example: >
+        Jones A, Smith B, Chen C, et al. Efficacy of novel therapy in
+        randomised controlled trial. Lancet 2024; 403: 123-45.
+  writing_conventions:
+    - "Structured abstract with word limit"
+    - "Research in Context panel (Evidence before, Added value, Implications)"
+    - "CONSORT checklist for RCTs"
+    - "Plain language summary"
+learned_patterns:
+  avg_paragraph_length: 90
+  avg_sentence_length: 26
+  common_section_headings:
+    - Summary
+    - Introduction
+    - Methods
+    - Results
+    - Discussion

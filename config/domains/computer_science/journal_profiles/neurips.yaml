@@ -1,0 +1,42 @@
+journal_info:
+  name: NeurIPS
+  publisher: NeurIPS Foundation
+  language: en
+  scope: "Machine learning, computational neuroscience, artificial intelligence"
+formatting:
+  citation_style: "Numbered (NeurIPS style)"
+  abstract: required
+  word_limit: null
+  page_limit: 9
+  reference_examples:
+    - type: conference
+      example: >
+        Vaswani, A. et al. Attention is all you need.
+        In Advances in Neural Information Processing Systems, 2017.
+  writing_conventions:
+    - "Clear problem statement in introduction"
+    - "Related work section with positioning"
+    - "Formal notation for mathematical content"
+    - "Comprehensive experiments with ablations"
+    - "Code availability statement"
+learned_patterns:
+  avg_paragraph_length: 80
+  avg_sentence_length: 25
+  passive_voice_ratio: 0.3
+  common_section_headings:
+    - Introduction
+    - Related Work
+    - Method
+    - Experiments
+    - Results
+    - Discussion
+    - Conclusion
+  typical_argument_structures:
+    - "Identify limitation of existing approach"
+    - "Propose novel method with theoretical motivation"
+    - "Demonstrate through comprehensive experiments"
+  frequent_theoretical_frameworks:
+    - Deep Learning
+    - Optimization Theory
+    - Information Theory
+    - Statistical Learning Theory
