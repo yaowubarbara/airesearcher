@@ -54,7 +54,7 @@ h1 { font-size: 1.6rem; color: #f8fafc; margin-bottom: 0.3rem; }
 </head>
 <body>
 <h1>Book Photo Upload</h1>
-<p class="subtitle">Upload book page photos for Claude to read and analyze</p>
+<p class="subtitle">Upload book page photos for AI to read and analyze</p>
 
 <div class="drop-zone" id="dropZone">
     <h2>Drop photos here</h2>
